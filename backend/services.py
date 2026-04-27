@@ -4,6 +4,7 @@ from collections import defaultdict
 from datetime import date
 from typing import Any
 
+from expense_parser import parse_expense_command
 from sheets_client import SheetsClient
 
 
@@ -39,6 +40,23 @@ class DashboardService:
             "total": sum(record["amount"] for record in filtered),
             "records": filtered,
             "availableMonths": sort_months({record["month"] for record in records}),
+        }
+
+    def record_expense_command(self, text: str) -> dict[str, Any]:
+        command = parse_expense_command(text)
+        record = self.sheets.append_expense(command)
+        return {
+            "message": "記帳成功",
+            "record": record,
+            "sheetRow": {
+                "Date": command.date,
+                "Type": command.type,
+                "Detail": command.detail,
+                "Amount": command.amount,
+                "Payer": command.payer,
+                "T_paid": command.t_paid,
+                "F_paid": command.f_paid,
+            },
         }
 
     def revenue(self, month: str | None = None) -> dict[str, Any]:
@@ -118,8 +136,10 @@ class DashboardService:
                 actual += sum(
                     value
                     for category, value in expense_by_category.items()
-                    if category in {"餐費", "交通", "日用品", "訂閱"}
+                    if category in {"餐費", "交通", "日用品", "訂閱", "Food", "Drink", "Baby", "Other"}
                 )
+            elif label == "教育":
+                actual += expense_by_category.get("Tuition", 0)
             items.append(
                 {
                     "label": f"{label} {int(float(allocation['pct']))}%",

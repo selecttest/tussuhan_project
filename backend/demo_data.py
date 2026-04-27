@@ -21,19 +21,19 @@ INCOME_RECORDS = [
 ]
 
 EXPENSE_RECORDS = [
-    {"date": "2026/04/03", "category": "餐費", "item": "午餐與咖啡", "amount": 3200, "month": "2026-04"},
-    {"date": "2026/04/05", "category": "生活支出", "item": "租屋", "amount": 12000, "month": "2026-04"},
-    {"date": "2026/04/07", "category": "交通", "item": "捷運與計程車", "amount": 900, "month": "2026-04"},
-    {"date": "2026/04/12", "category": "教育", "item": "線上課程", "amount": 3800, "month": "2026-04"},
-    {"date": "2026/04/18", "category": "娛樂", "item": "電影與聚餐", "amount": 2160, "month": "2026-04"},
-    {"date": "2026/03/05", "category": "生活支出", "item": "租屋", "amount": 12000, "month": "2026-03"},
-    {"date": "2026/03/11", "category": "餐費", "item": "餐費彙總", "amount": 4500, "month": "2026-03"},
-    {"date": "2026/03/19", "category": "教育", "item": "書籍", "amount": 1800, "month": "2026-03"},
-    {"date": "2026/03/23", "category": "娛樂", "item": "聚餐", "amount": 1800, "month": "2026-03"},
-    {"date": "2026/02/10", "category": "生活支出", "item": "生活費彙總", "amount": 19800, "month": "2026-02"},
-    {"date": "2026/01/10", "category": "生活支出", "item": "生活費彙總", "amount": 17500, "month": "2026-01"},
-    {"date": "2025/12/10", "category": "生活支出", "item": "生活費彙總", "amount": 22000, "month": "2025-12"},
-    {"date": "2025/11/10", "category": "生活支出", "item": "生活費彙總", "amount": 18200, "month": "2025-11"},
+    {"date": "2026/04/03", "category": "Food", "type": "Food", "item": "午餐與咖啡", "detail": "午餐與咖啡", "amount": 3200, "payer": "T", "tPaid": 3200, "fPaid": 0, "month": "2026-04"},
+    {"date": "2026/04/05", "category": "Other", "type": "Other", "item": "租屋", "detail": "租屋", "amount": 12000, "payer": "T", "tPaid": 12000, "fPaid": 0, "month": "2026-04"},
+    {"date": "2026/04/07", "category": "Other", "type": "Other", "item": "捷運與計程車", "detail": "捷運與計程車", "amount": 900, "payer": "T", "tPaid": 900, "fPaid": 0, "month": "2026-04"},
+    {"date": "2026/04/12", "category": "Tuition", "type": "Tuition", "item": "線上課程", "detail": "線上課程", "amount": 3800, "payer": "T", "tPaid": 3800, "fPaid": 0, "month": "2026-04"},
+    {"date": "2026/04/18", "category": "Other", "type": "Other", "item": "電影與聚餐", "detail": "電影與聚餐", "amount": 2160, "payer": "T", "tPaid": 2160, "fPaid": 0, "month": "2026-04"},
+    {"date": "2026/03/05", "category": "Other", "type": "Other", "item": "租屋", "detail": "租屋", "amount": 12000, "payer": "T", "tPaid": 12000, "fPaid": 0, "month": "2026-03"},
+    {"date": "2026/03/11", "category": "Food", "type": "Food", "item": "餐費彙總", "detail": "餐費彙總", "amount": 4500, "payer": "T", "tPaid": 4500, "fPaid": 0, "month": "2026-03"},
+    {"date": "2026/03/19", "category": "Tuition", "type": "Tuition", "item": "書籍", "detail": "書籍", "amount": 1800, "payer": "T", "tPaid": 1800, "fPaid": 0, "month": "2026-03"},
+    {"date": "2026/03/23", "category": "Other", "type": "Other", "item": "聚餐", "detail": "聚餐", "amount": 1800, "payer": "T", "tPaid": 1800, "fPaid": 0, "month": "2026-03"},
+    {"date": "2026/02/10", "category": "Other", "type": "Other", "item": "生活費彙總", "detail": "生活費彙總", "amount": 19800, "payer": "T", "tPaid": 19800, "fPaid": 0, "month": "2026-02"},
+    {"date": "2026/01/10", "category": "Other", "type": "Other", "item": "生活費彙總", "detail": "生活費彙總", "amount": 17500, "payer": "T", "tPaid": 17500, "fPaid": 0, "month": "2026-01"},
+    {"date": "2025/12/10", "category": "Other", "type": "Other", "item": "生活費彙總", "detail": "生活費彙總", "amount": 22000, "payer": "T", "tPaid": 22000, "fPaid": 0, "month": "2025-12"},
+    {"date": "2025/11/10", "category": "Other", "type": "Other", "item": "生活費彙總", "detail": "生活費彙總", "amount": 18200, "payer": "T", "tPaid": 18200, "fPaid": 0, "month": "2025-11"},
 ]
 
 ALLOCATIONS = [

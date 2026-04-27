@@ -39,9 +39,15 @@ Create a Google Cloud service account, download the JSON key, enable Google Shee
 Expected worksheet names and headers:
 
 - `收入紀錄`: `名稱`, `收入日期`, `收入種類`, `收入金額`, `月份總表`
-- `支出紀錄`: `日期`, `分類`, `品項`, `金額`, `月份`
+- `支出紀錄`: `Date`, `Type`, `Detail`, `Amount`, `Payer`, `T_paid`, `F_paid`
 - `固定分配設定`: `名稱`, `固定分配金額`, `分配比例`, `說明`
 - `訂閱管理`: `服務名稱`, `每月費用`, `計費週期`, `狀態`
+
+Expense command examples:
+
+- `記 餐費 拉亞+M 415` -> `Payer=T`, `T_paid=415`, `F_paid=0`
+- `記F 飲料 coco 99` -> `Payer=F`, `T_paid=0`, `F_paid=99`
+- `記 餐費 早餐+吉品+便當 590 分215` -> `Payer=T`, `T_paid=375`, `F_paid=215`
 
 Optional environment overrides:
 
@@ -58,6 +64,7 @@ SUBSCRIPTION_SHEET_NAME=訂閱管理
 - `GET /api/dashboard?month=2026-04`
 - `GET /api/income?month=2026-04`
 - `GET /api/expense?month=2026-04`
+- `POST /api/expense/command`
 - `GET /api/summary/monthly`
 - `GET /api/summary/allocation?month=2026-04`
 - `GET /api/summary/trend?limit=6`

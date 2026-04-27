@@ -230,11 +230,13 @@ Google Sheets 作為 Single Source of Truth
 
 | 欄位 | 型別 | 範例 | 說明 |
 |------|------|------|------|
-| 日期 | date | 2026/03/15 | 消費日期 |
-| 分類 | string | 餐費 | 餐費 / 交通 / 日用品 / 娛樂 / 訂閱 |
-| 品項 | string | 午餐 便當 | 消費品項描述 |
-| 金額 | number | 80 | 金額（新台幣） |
-| 月份 | string | 2026-03 | 所屬月份 |
+| Date | date | 2025/9/14 | 消費日期 |
+| Type | string | Food | Baby / Food / Drink / Tuition / Other |
+| Detail | string | 拉亞+M | 消費品項描述 |
+| Amount | number | 415 | 結帳總金額 |
+| Payer | string | T | 實際結帳者，`T` 或 `F` |
+| T_paid | number | 248 | T 實際負擔金額 |
+| F_paid | number | 167 | F 實際負擔金額 |
 
 #### 工作表 3：固定分配設定
 
@@ -425,7 +427,9 @@ sudo systemctl start linebot
 
 | 指令格式 | 範例 | 說明 |
 |---------|------|------|
-| `記 [分類] [品項] [金額]` | 記 餐費 午餐便當 80 | 記錄一筆支出 |
+| `記 [分類] [品項] [金額]` | 記 餐費 拉亞+M 415 | 預設 T 付全額，寫入 `Payer=T`, `T_paid=415`, `F_paid=0` |
+| `記F [分類] [品項] [金額]` | 記F 飲料 coco 99 | F 付全額，寫入 `Payer=F`, `T_paid=0`, `F_paid=99` |
+| `記 [分類] [品項] [金額] 分[金額]` | 記 餐費 早餐+吉品+便當 590 分215 | T 結帳 590，其中 F 負擔 215，寫入 `T_paid=375`, `F_paid=215` |
 | `收 [名稱] [類型] [金額]` | 收 Z公司 固定 15000 | 記錄一筆收入 |
 | `查 [月份]` | 查 3月 | 查詢指定月份摘要 |
 | `今日` | 今日 | 查詢今日花費總計 |
@@ -436,9 +440,11 @@ sudo systemctl start linebot
 
 ```
 ✅ 記帳成功！
-📝 餐費 — 午餐便當
-💰 $80
-📅 2026/03/15
+📝 Food — 早餐+吉品+便當
+💰 $590
+📅 2025/9/15
+👤 Payer：T
+🧾 T：$375 / F：$215
 ━━━━━━━━━━━━
 📊 今日累計支出：$350
 📊 本月餐費累計：$4,200 / $9,000
@@ -493,6 +499,7 @@ line-bot-accounting/
 │   ├── requirements.txt    # Python 套件清單
 │   ├── sheets_client.py    # Google Sheets 連線與資料轉換
 │   ├── services.py         # Dashboard 統計與彙整
+│   ├── expense_parser.py   # 支出記帳與分帳指令解析
 │   ├── demo_data.py        # 未設定 Sheets 時的開發資料
 │   └── api/
 │       ├── __init__.py

@@ -1,6 +1,7 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from api.dependencies import get_dashboard_service
 from services import DashboardService
@@ -9,6 +10,10 @@ from services import DashboardService
 router = APIRouter()
 DashboardDependency = Annotated[DashboardService, Depends(get_dashboard_service)]
 MonthQuery = Annotated[str | None, Query(pattern=r"^\d{4}-\d{2}$")]
+
+
+class ExpenseCommandRequest(BaseModel):
+    text: str = Field(..., examples=["記 餐費 早餐+吉品+便當 590 分215"])
 
 
 @router.get("/health")
@@ -32,6 +37,14 @@ def income(service: DashboardDependency, month: MonthQuery = None):
 @router.get("/api/expense")
 def expense(service: DashboardDependency, month: MonthQuery = None):
     return service.expenses(month)
+
+
+@router.post("/api/expense/command")
+def record_expense_command(payload: ExpenseCommandRequest, service: DashboardDependency):
+    try:
+        return service.record_expense_command(payload.text)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/api/summary/monthly")

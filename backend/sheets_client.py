@@ -4,6 +4,7 @@ from typing import Any
 
 from config import Config
 from demo_data import ALLOCATIONS, EXPENSE_RECORDS, INCOME_RECORDS, SUBSCRIPTIONS
+from expense_parser import ExpenseCommand
 
 
 def _to_number(value: Any) -> float:
@@ -24,8 +25,9 @@ def _normalize_date(value: Any) -> str:
 
 def _month_from_date(value: Any) -> str:
     text = _normalize_date(value)
-    if len(text) >= 7:
-        return text[:7].replace("/", "-")
+    parts = text.split("/")
+    if len(parts) >= 2 and parts[0].isdigit() and parts[1].isdigit():
+        return f"{int(parts[0]):04d}-{int(parts[1]):02d}"
     return ""
 
 
@@ -60,15 +62,17 @@ class SheetsClient:
 
         rows = self._worksheet_records(self.config.expense_sheet_name)
         return [
-            {
-                "date": _normalize_date(row.get("日期")),
-                "category": row.get("分類", ""),
-                "item": row.get("品項", ""),
-                "amount": int(_to_number(row.get("金額"))),
-                "month": row.get("月份") or _month_from_date(row.get("日期")),
-            }
+            self._normalize_expense_row(row)
             for row in rows
         ]
+
+    def append_expense(self, command: ExpenseCommand) -> dict[str, Any]:
+        if self.using_demo_data:
+            return command.to_record()
+
+        worksheet = self._open_spreadsheet().worksheet(self.config.expense_sheet_name)
+        worksheet.append_row(command.to_sheet_row(), value_input_option="USER_ENTERED")
+        return command.to_record()
 
     def allocations(self) -> list[dict[str, Any]]:
         if self.using_demo_data:
@@ -104,6 +108,33 @@ class SheetsClient:
     def _worksheet_records(self, worksheet_name: str) -> list[dict[str, Any]]:
         worksheet = self._open_spreadsheet().worksheet(worksheet_name)
         return worksheet.get_all_records()
+
+    def _normalize_expense_row(self, row: dict[str, Any]) -> dict[str, Any]:
+        expense_date = _normalize_date(row.get("Date") or row.get("日期"))
+        expense_type = row.get("Type") or row.get("分類") or ""
+        detail = row.get("Detail") or row.get("品項") or ""
+        amount = int(_to_number(row.get("Amount") or row.get("金額")))
+        payer = str(row.get("Payer") or "T").upper()
+        t_paid = int(_to_number(row.get("T_paid")))
+        f_paid = int(_to_number(row.get("F_paid")))
+
+        if not t_paid and not f_paid:
+            t_paid, f_paid = (amount, 0) if payer == "T" else (0, amount)
+
+        return {
+            "date": expense_date,
+            "category": expense_type,
+            "type": expense_type,
+            "item": detail,
+            "detail": detail,
+            "amount": amount,
+            "payer": payer,
+            "tPaid": t_paid,
+            "fPaid": f_paid,
+            "t_paid": t_paid,
+            "f_paid": f_paid,
+            "month": row.get("月份") or _month_from_date(expense_date),
+        }
 
     def _open_spreadsheet(self):
         if self._spreadsheet is not None:
