@@ -314,6 +314,16 @@ pip install -r requirements.txt
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+CMD 環境可使用：
+
+```cmd
+cd /d C:\Users\2510094\Desktop\tussuhan_project\backend
+py -m venv .venv
+.\.venv\Scripts\activate
+py -m pip install -r requirements.txt
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
 後端啟動後可開啟：
 
 - API Health Check：`http://localhost:8000/health`
@@ -368,6 +378,74 @@ CORS_ORIGIN=http://localhost:3000
 ```
 
 若未設定 `GOOGLE_SHEETS_ID` 與 `GOOGLE_CREDENTIALS_PATH`，後端會先回傳 demo data，方便前端開發。設定後會透過 Google Sheets API 讀取試算表資料。
+
+#### CMD 暫時測試環境變數
+
+```cmd
+cd /d C:\Users\2510094\Desktop\tussuhan_project\backend
+
+set GOOGLE_SHEETS_ID=104yNlgh-PwPoQXqBUDIVAehjn-qOQXx7b8Dhgqy0RzY
+set GOOGLE_CREDENTIALS_PATH=C:\Users\2510094\Desktop\tussuhan_project\backend\credentials.json
+set CORS_ORIGIN=http://localhost:3000
+```
+
+確認設定：
+
+```cmd
+echo %GOOGLE_SHEETS_ID%
+echo %GOOGLE_CREDENTIALS_PATH%
+echo %CORS_ORIGIN%
+```
+
+`set` 只會套用在目前 CMD 視窗；關閉視窗後需重新設定。
+
+### Google Sheets API 測試
+
+#### 1. Health Check
+
+啟動後端後開啟：
+
+```text
+http://localhost:8000/health
+```
+
+成功串接 Google Sheets 時應回傳：
+
+```json
+{"status":"ok","source":"google_sheets"}
+```
+
+#### 2. 模擬 LINE Bot 記帳指令
+
+T 付全額：
+
+```cmd
+curl -X POST http://localhost:8000/api/expense/command -H "Content-Type: application/json" -d "{\"text\":\"記 餐費 拉亞+M 415\"}"
+```
+
+F 付全額：
+
+```cmd
+curl -X POST http://localhost:8000/api/expense/command -H "Content-Type: application/json" -d "{\"text\":\"記F 飲料 coco 99\"}"
+```
+
+分帳：
+
+```cmd
+curl -X POST http://localhost:8000/api/expense/command -H "Content-Type: application/json" -d "{\"text\":\"記 餐費 早餐+吉品+便當 590 分215\"}"
+```
+
+成功後，Google Sheet 的 `支出紀錄` 分頁會新增資料，欄位格式如下：
+
+```text
+Date | Type | Detail | Amount | Payer | T_paid | F_paid
+```
+
+#### 3. 常見錯誤
+
+- `APIError: [400]: This operation is not supported for this document`：文件不是原生 Google Sheets，需到 `檔案 -> 另存為 Google 試算表` 後改用新的 Sheet ID。
+- `WorksheetNotFound: 支出紀錄`：找不到工作表分頁，請把底部分頁改名為 `支出紀錄`，或設定 `EXPENSE_SHEET_NAME=你的分頁名稱`。
+- `/health` 回傳 `source=demo`：後端沒有讀到 `GOOGLE_SHEETS_ID` 或 `GOOGLE_CREDENTIALS_PATH`，請在同一個 CMD 視窗設定環境變數後重啟後端。
 
 ### Nginx 設定
 
