@@ -514,6 +514,16 @@ sudo systemctl start linebot
 | `本月` | 本月 | 查詢本月收支總覽 |
 | `訂閱` | 訂閱 | 查看訂閱費用清單 |
 
+### LINE Developers Webhook 設定
+
+部署後將 LINE Developers 後台的 Webhook URL 設為：
+
+```text
+https://your-domain.com/webhook
+```
+
+後端會使用 `LINE_CHANNEL_SECRET` 驗證 `X-Line-Signature`，並透過 `LINE_CHANNEL_ACCESS_TOKEN` 回覆訊息。
+
 ### 回覆範例
 
 ```

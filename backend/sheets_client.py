@@ -5,6 +5,7 @@ from typing import Any
 from config import Config
 from demo_data import ALLOCATIONS, EXPENSE_RECORDS, INCOME_RECORDS, SUBSCRIPTIONS
 from expense_parser import ExpenseCommand
+from income_parser import IncomeCommand
 
 
 def _to_number(value: Any) -> float:
@@ -71,6 +72,14 @@ class SheetsClient:
             return command.to_record()
 
         worksheet = self._open_spreadsheet().worksheet(self.config.expense_sheet_name)
+        worksheet.append_row(command.to_sheet_row(), value_input_option="USER_ENTERED")
+        return command.to_record()
+
+    def append_income(self, command: IncomeCommand) -> dict[str, Any]:
+        if self.using_demo_data:
+            return command.to_record()
+
+        worksheet = self._open_spreadsheet().worksheet(self.config.income_sheet_name)
         worksheet.append_row(command.to_sheet_row(), value_input_option="USER_ENTERED")
         return command.to_record()
 

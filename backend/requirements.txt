@@ -3,3 +3,4 @@ uvicorn[standard]
 gunicorn
 gspread
 google-auth
+line-bot-sdk

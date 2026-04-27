@@ -28,6 +28,8 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 GOOGLE_SHEETS_ID=your_spreadsheet_id
 GOOGLE_CREDENTIALS_PATH=/path/to/credentials.json
 CORS_ORIGIN=http://localhost:3000
+LINE_CHANNEL_SECRET=your_line_channel_secret
+LINE_CHANNEL_ACCESS_TOKEN=your_line_channel_access_token
 ```
 
 If these values are not set, the API returns demo data.
@@ -48,6 +50,15 @@ Expense command examples:
 - `記 餐費 拉亞+M 415` -> `Payer=T`, `T_paid=415`, `F_paid=0`
 - `記F 飲料 coco 99` -> `Payer=F`, `T_paid=0`, `F_paid=99`
 - `記 餐費 早餐+吉品+便當 590 分215` -> `Payer=T`, `T_paid=375`, `F_paid=215`
+- `收 Z公司 固定收入 15000` -> writes to `收入紀錄`
+
+LINE Bot query examples:
+
+- `查` -> current month summary
+- `查 2026-04` or `查 4月` -> selected month summary
+- `今日` -> today's expense total
+- `本月` -> current month summary
+- `訂閱` -> active subscription total
 
 Optional environment overrides:
 
@@ -61,6 +72,7 @@ SUBSCRIPTION_SHEET_NAME=訂閱管理
 ## Endpoints
 
 - `GET /health`
+- `POST /webhook`
 - `GET /api/dashboard?month=2026-04`
 - `GET /api/income?month=2026-04`
 - `GET /api/expense?month=2026-04`
