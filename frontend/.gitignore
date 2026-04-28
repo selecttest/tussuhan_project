@@ -6,7 +6,6 @@ coverage
 .cache
 .output
 .env
-dist
 .DS_Store
 .idea
 .eslintcache
