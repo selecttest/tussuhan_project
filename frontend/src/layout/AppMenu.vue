@@ -20,6 +20,11 @@ const model = ref([
                 label: '支出紀錄明細',
                 icon: 'pi pi-fw pi-list',
                 to: '/bot/expense-records'
+            },
+            {
+                label: 'Bot 指令說明',
+                icon: 'pi pi-fw pi-comment',
+                to: '/bot/commands'
             }
         ]
     },

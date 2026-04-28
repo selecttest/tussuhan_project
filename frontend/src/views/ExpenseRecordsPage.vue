@@ -43,13 +43,19 @@ function applyRwdDefaults() {
     }
 }
 
-const TYPE_SEVERITY = {
-    Food:    'info',
-    Baby:    'warning',
-    Drink:   'success',
-    Tuition: 'help',
-    Other:   'secondary',
+/* 馬卡龍色系：每種分類使用明顯可區分的柔和色 */
+const TYPE_CLASS = {
+    Food:      'bg-orange-100 text-orange-700 dark:bg-orange-900/60 dark:text-orange-300',
+    Baby:      'bg-pink-100 text-pink-700 dark:bg-pink-900/60 dark:text-pink-300',
+    Drink:     'bg-teal-100 text-teal-700 dark:bg-teal-900/60 dark:text-teal-300',
+    Tuition:   'bg-violet-100 text-violet-700 dark:bg-violet-900/60 dark:text-violet-300',
+    Other:     'bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300',
+    Insurance: 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300',
 };
+
+function typeClass(type) {
+    return TYPE_CLASS[type] ?? 'bg-gray-100 text-gray-600 dark:bg-gray-700/60 dark:text-gray-300';
+}
 const PAYER_SEVERITY = { T: 'info', F: 'warn' };
 
 /* 從已載入的紀錄取得所有分類選項 */
@@ -203,7 +209,9 @@ onMounted(() => {
                         :show-toggle-all="false"
                     >
                         <template #option="{ option }">
-                            <Tag :value="option.label" :severity="TYPE_SEVERITY[option.label] || 'secondary'" />
+                            <span :class="['inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold', typeClass(option.label)]">
+                                {{ option.label }}
+                            </span>
                         </template>
                     </MultiSelect>
 
@@ -265,7 +273,9 @@ onMounted(() => {
 
                 <Column v-if="colVisible.type" field="type" header="分類" style="width:90px">
                     <template #body="{ data }">
-                        <Tag :value="data.type" :severity="TYPE_SEVERITY[data.type] || 'secondary'" />
+                        <span :class="['inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold', typeClass(data.type)]">
+                            {{ data.type }}
+                        </span>
                     </template>
                 </Column>
 
