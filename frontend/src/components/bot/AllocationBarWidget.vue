@@ -8,29 +8,29 @@ const chartData = ref(null);
 const chartOptions = ref(null);
 
 const props = defineProps({
-    allocation: { type: Object, default: () => ({}) }
+    payerSplit: { type: Object, default: () => ({}) }
 });
 
-const totalIncome = computed(() => props.allocation.totalIncome || 0);
-const allocations = computed(() => props.allocation.items || []);
+const byType = computed(() => props.payerSplit.byType || []);
+const tTotal = computed(() => props.payerSplit.tTotal || 0);
+const fTotal = computed(() => props.payerSplit.fTotal || 0);
 
 function setChartData() {
     const documentStyle = getComputedStyle(document.documentElement);
     return {
-        labels: allocations.value.map((a) => a.label),
+        labels: byType.value.map(item => item.type),
         datasets: [
             {
-                label: '預算',
-                data: allocations.value.map((a) => a.budgeted),
-                backgroundColor: `${documentStyle.getPropertyValue('--p-primary-300')}80`,
-                borderColor: documentStyle.getPropertyValue('--p-primary-300'),
-                borderWidth: 1,
+                label: 'T 負擔',
+                data: byType.value.map(item => item.tPaid),
+                backgroundColor: documentStyle.getPropertyValue('--p-primary-500'),
+                borderRadius: 6,
                 barThickness: 14
             },
             {
-                label: '實際',
-                data: allocations.value.map((a) => a.actual),
-                backgroundColor: documentStyle.getPropertyValue('--p-primary-500'),
+                label: 'F 負擔',
+                data: byType.value.map(item => item.fPaid),
+                backgroundColor: '#F59E0B',
                 borderRadius: 6,
                 barThickness: 14
             }
@@ -48,9 +48,7 @@ function setChartOptions() {
         indexAxis: 'y',
         maintainAspectRatio: false,
         plugins: {
-            legend: {
-                labels: { color: textColor, usePointStyle: true }
-            },
+            legend: { labels: { color: textColor, usePointStyle: true } },
             tooltip: {
                 callbacks: {
                     label: (ctx) => ` NT$ ${ctx.parsed.x.toLocaleString()}`
@@ -59,10 +57,7 @@ function setChartOptions() {
         },
         scales: {
             x: {
-                ticks: {
-                    color: textMutedColor,
-                    callback: (v) => `${(v / 1000).toFixed(0)}k`
-                },
+                ticks: { color: textMutedColor, callback: (v) => `${(v / 1000).toFixed(0)}k` },
                 grid: { color: borderColor }
             },
             y: {
@@ -73,7 +68,7 @@ function setChartOptions() {
     };
 }
 
-watch([() => layoutConfig.primary, () => layoutConfig.surface, isDarkTheme, () => props.allocation], () => {
+watch([() => layoutConfig.primary, () => layoutConfig.surface, isDarkTheme, () => props.payerSplit], () => {
     chartData.value = setChartData();
     chartOptions.value = setChartOptions();
 }, { deep: true, immediate: true });
@@ -82,20 +77,19 @@ watch([() => layoutConfig.primary, () => layoutConfig.surface, isDarkTheme, () =
 <template>
     <div class="card">
         <div class="mb-6">
-            <div class="font-semibold text-xl">財務分配概覽</div>
-            <div class="text-muted-color text-sm mt-1">預算 vs 實際支出對比（NT$ {{ totalIncome.toLocaleString() }} 月收入基準）</div>
+            <div class="font-semibold text-xl">T / F 分類負擔</div>
+            <div class="text-muted-color text-sm mt-1">
+                T 合計 NT$ {{ tTotal.toLocaleString() }} ／ F 合計 NT$ {{ fTotal.toLocaleString() }}
+            </div>
         </div>
 
         <Chart type="bar" :data="chartData" :options="chartOptions" class="h-64" />
 
-        <div class="grid grid-cols-5 gap-2 mt-6">
-            <div v-for="item in allocations" :key="item.label" class="text-center">
-                <div class="text-xs text-muted-color mb-1">{{ item.label.split(' ')[0] }}</div>
-                <div
-                    class="text-xs font-semibold"
-                    :class="item.actual > item.budgeted ? 'text-red-500' : 'text-green-500'"
-                >
-                    {{ item.actual > item.budgeted ? '超支' : '正常' }}
+        <div class="grid gap-2 mt-6" :style="{ gridTemplateColumns: `repeat(${Math.min(byType.length, 5)}, 1fr)` }">
+            <div v-for="item in byType" :key="item.type" class="text-center">
+                <div class="text-xs text-muted-color mb-1">{{ item.type }}</div>
+                <div class="text-xs font-semibold text-primary">
+                    {{ (item.tPaid + item.fPaid).toLocaleString() }}
                 </div>
             </div>
         </div>

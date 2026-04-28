@@ -8,24 +8,23 @@ const chartData = ref(null);
 const chartOptions = ref(null);
 
 const props = defineProps({
-    subscriptions: { type: Object, default: () => ({}) }
+    payerSplit: { type: Object, default: () => ({}) }
 });
 
-const subscriptionItems = computed(() => props.subscriptions.items || []);
-const totalSub = computed(() => props.subscriptions.total || subscriptionItems.value.reduce((sum, item) => sum + Number(item.fee || 0), 0));
+const tTotal = computed(() => props.payerSplit.tTotal || 0);
+const fTotal = computed(() => props.payerSplit.fTotal || 0);
+const grandTotal = computed(() => tTotal.value + fTotal.value);
 
 function setChartData() {
     return {
-        labels: subscriptionItems.value.map((s) => s.name),
-        datasets: [
-            {
-                data: subscriptionItems.value.map((s) => s.fee),
-                backgroundColor: subscriptionItems.value.map((s) => s.color),
-                hoverBackgroundColor: subscriptionItems.value.map((s) => `${s.color}CC`),
-                borderWidth: 2,
-                borderColor: 'transparent'
-            }
-        ]
+        labels: ['T 負擔', 'F 負擔'],
+        datasets: [{
+            data: [tTotal.value, fTotal.value],
+            backgroundColor: ['#3B82F6', '#F59E0B'],
+            hoverBackgroundColor: ['#2563EB', '#D97706'],
+            borderWidth: 2,
+            borderColor: 'transparent'
+        }]
     };
 }
 
@@ -35,24 +34,21 @@ function setChartOptions() {
     return {
         maintainAspectRatio: false,
         plugins: {
-            legend: {
-                position: 'bottom',
-                labels: { color: textColor, usePointStyle: true, padding: 12 }
-            },
+            legend: { position: 'bottom', labels: { color: textColor, usePointStyle: true, padding: 16 } },
             tooltip: {
                 callbacks: {
                     label: (ctx) => {
-                        const pct = totalSub.value ? ((ctx.parsed / totalSub.value) * 100).toFixed(1) : '0.0';
-                        return ` NT$ ${ctx.parsed} (${pct}%)`;
+                        const pct = grandTotal.value ? ((ctx.parsed / grandTotal.value) * 100).toFixed(1) : '0.0';
+                        return ` NT$ ${ctx.parsed.toLocaleString()} (${pct}%)`;
                     }
                 }
             }
         },
-        cutout: '60%'
+        cutout: '62%'
     };
 }
 
-watch([() => layoutConfig.primary, () => layoutConfig.surface, isDarkTheme, () => props.subscriptions], () => {
+watch([() => layoutConfig.primary, () => layoutConfig.surface, isDarkTheme, () => props.payerSplit], () => {
     chartData.value = setChartData();
     chartOptions.value = setChartOptions();
 }, { deep: true, immediate: true });
@@ -62,30 +58,45 @@ watch([() => layoutConfig.primary, () => layoutConfig.surface, isDarkTheme, () =
     <div class="card">
         <div class="flex items-center justify-between mb-4">
             <div>
-                <div class="font-semibold text-xl">串流訂閱費用</div>
-                <div class="text-muted-color text-sm mt-1">每月合計 NT$ {{ totalSub.toLocaleString() }}</div>
+                <div class="font-semibold text-xl">T / F 負擔比例</div>
+                <div class="text-muted-color text-sm mt-1">本月合計 NT$ {{ grandTotal.toLocaleString() }}</div>
             </div>
-            <Tag severity="secondary" :value="`${subscriptionItems.length} 項服務`" />
         </div>
 
         <div class="relative">
             <Chart type="doughnut" :data="chartData" :options="chartOptions" class="h-60" />
-            <div class="absolute inset-0 flex items-center justify-center pointer-events-none" style="padding-bottom: 3.5rem">
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none" style="padding-bottom:3.5rem">
                 <div class="text-center">
-                    <div class="text-muted-color text-xs">月訂閱</div>
-                    <div class="font-bold text-lg">NT$ {{ totalSub.toLocaleString() }}</div>
+                    <div class="text-muted-color text-xs">總支出</div>
+                    <div class="font-bold text-lg">NT$ {{ grandTotal.toLocaleString() }}</div>
                 </div>
             </div>
         </div>
 
-        <div class="flex flex-col gap-2 mt-4">
-            <div v-for="sub in subscriptionItems" :key="sub.name" class="flex items-center justify-between">
+        <div class="flex flex-col gap-3 mt-4">
+            <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                    <div class="w-2.5 h-2.5 rounded-full" :style="{ backgroundColor: sub.color }"></div>
-                    <span class="text-sm">{{ sub.name }}</span>
-                    <Tag :value="sub.cycle" severity="secondary" class="text-xs!" />
+                    <div class="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
+                    <span class="text-sm font-medium">T 負擔</span>
                 </div>
-                <span class="font-semibold text-sm">NT$ {{ sub.fee }}</span>
+                <div class="text-right">
+                    <span class="font-semibold">NT$ {{ tTotal.toLocaleString() }}</span>
+                    <span class="text-muted-color text-xs ml-2">
+                        {{ grandTotal ? ((tTotal / grandTotal) * 100).toFixed(1) : '0.0' }}%
+                    </span>
+                </div>
+            </div>
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div class="w-2.5 h-2.5 rounded-full" style="background:#F59E0B"></div>
+                    <span class="text-sm font-medium">F 負擔</span>
+                </div>
+                <div class="text-right">
+                    <span class="font-semibold">NT$ {{ fTotal.toLocaleString() }}</span>
+                    <span class="text-muted-color text-xs ml-2">
+                        {{ grandTotal ? ((fTotal / grandTotal) * 100).toFixed(1) : '0.0' }}%
+                    </span>
+                </div>
             </div>
         </div>
     </div>

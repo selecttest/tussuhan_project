@@ -81,11 +81,6 @@ def dashboard(service: DashboardDependency, month: MonthQuery = None):
     return service.dashboard(month)
 
 
-@router.get("/api/income")
-def income(service: DashboardDependency, month: MonthQuery = None):
-    return service.income(month)
-
-
 @router.get("/api/expense")
 def expense(service: DashboardDependency, month: MonthQuery = None):
     return service.expenses(month)
@@ -104,32 +99,22 @@ def monthly_summary(service: DashboardDependency):
     return service.monthly_summary()
 
 
-@router.get("/api/summary/allocation")
-def allocation(service: DashboardDependency, month: MonthQuery = None):
-    return service.allocation(month)
-
-
 @router.get("/api/summary/trend")
 def trend(service: DashboardDependency, limit: Annotated[int, Query(ge=1, le=24)] = 6):
     return service.trend(limit=limit)
 
 
-@router.get("/api/summary/revenue")
-def revenue(service: DashboardDependency, month: MonthQuery = None):
-    return service.revenue(month)
+@router.get("/api/summary/type-breakdown")
+def type_breakdown(service: DashboardDependency, month: MonthQuery = None):
+    return service.type_breakdown(month)
 
 
-@router.get("/api/summary/stats")
-def stats(service: DashboardDependency, month: MonthQuery = None):
-    return service.stats(month)
-
-
-@router.get("/api/subscriptions")
-def subscriptions(service: DashboardDependency):
-    return service.subscriptions()
+@router.get("/api/summary/payer-split")
+def payer_split(service: DashboardDependency, month: MonthQuery = None):
+    return service.payer_split(month)
 
 
 @router.get("/api/options")
 def options(service: DashboardDependency):
-    monthly = service.monthly_summary()
-    return {"months": monthly["months"]}
+    summary = service.monthly_summary()
+    return {"months": summary["months"]}

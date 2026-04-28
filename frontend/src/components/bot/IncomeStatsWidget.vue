@@ -1,13 +1,12 @@
 <script setup>
 const props = defineProps({
-    totalIncome: { type: Number, default: 0 },
     totalExpense: { type: Number, default: 0 },
-    netIncome: { type: Number, default: 0 },
-    totalSubscription: { type: Number, default: 0 },
-    subscriptionCount: { type: Number, default: 0 }
+    tTotal: { type: Number, default: 0 },
+    fTotal: { type: Number, default: 0 },
+    todayExpense: { type: Number, default: 0 }
 });
 
-function formatNTD(value) {
+function fmt(value) {
     return `NT$ ${value.toLocaleString('zh-TW')}`;
 }
 </script>
@@ -17,31 +16,14 @@ function formatNTD(value) {
         <div class="card mb-0">
             <div class="flex justify-between mb-4">
                 <div>
-                    <span class="block text-muted-color font-medium mb-4">本月總收入</span>
-                    <div class="text-surface-900 dark:text-surface-0 font-medium text-xl">{{ formatNTD(totalIncome) }}</div>
-                </div>
-                <div class="flex items-center justify-center bg-green-100 dark:bg-green-400/10 rounded-border" style="width: 2.5rem; height: 2.5rem">
-                    <i class="pi pi-arrow-up text-green-500 text-xl!"></i>
-                </div>
-            </div>
-            <span class="text-green-500 font-medium">+12.3% </span>
-            <span class="text-muted-color">較上個月</span>
-        </div>
-    </div>
-
-    <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <div class="card mb-0">
-            <div class="flex justify-between mb-4">
-                <div>
                     <span class="block text-muted-color font-medium mb-4">本月總支出</span>
-                    <div class="text-surface-900 dark:text-surface-0 font-medium text-xl">{{ formatNTD(totalExpense) }}</div>
+                    <div class="text-surface-900 dark:text-surface-0 font-medium text-xl">{{ fmt(totalExpense) }}</div>
                 </div>
-                <div class="flex items-center justify-center bg-red-100 dark:bg-red-400/10 rounded-border" style="width: 2.5rem; height: 2.5rem">
-                    <i class="pi pi-arrow-down text-red-500 text-xl!"></i>
+                <div class="flex items-center justify-center bg-red-100 dark:bg-red-400/10 rounded-border" style="width:2.5rem;height:2.5rem">
+                    <i class="pi pi-shopping-cart text-red-500 text-xl!"></i>
                 </div>
             </div>
-            <span class="text-red-500 font-medium">-5.8% </span>
-            <span class="text-muted-color">較上個月</span>
+            <span class="text-muted-color text-sm">累計所有分類支出</span>
         </div>
     </div>
 
@@ -49,15 +31,16 @@ function formatNTD(value) {
         <div class="card mb-0">
             <div class="flex justify-between mb-4">
                 <div>
-                    <span class="block text-muted-color font-medium mb-4">本月淨收入</span>
-                    <div class="text-surface-900 dark:text-surface-0 font-medium text-xl">{{ formatNTD(netIncome) }}</div>
+                    <span class="block text-muted-color font-medium mb-4">T 負擔</span>
+                    <div class="text-surface-900 dark:text-surface-0 font-medium text-xl">{{ fmt(tTotal) }}</div>
                 </div>
-                <div class="flex items-center justify-center bg-blue-100 dark:bg-blue-400/10 rounded-border" style="width: 2.5rem; height: 2.5rem">
-                    <i class="pi pi-wallet text-blue-500 text-xl!"></i>
+                <div class="flex items-center justify-center bg-blue-100 dark:bg-blue-400/10 rounded-border" style="width:2.5rem;height:2.5rem">
+                    <i class="pi pi-user text-blue-500 text-xl!"></i>
                 </div>
             </div>
-            <span class="text-primary font-medium">財務健康 </span>
-            <span class="text-muted-color">結餘良好</span>
+            <span class="text-muted-color text-sm">
+                {{ totalExpense ? ((tTotal / totalExpense) * 100).toFixed(1) : '0.0' }}% 佔比
+            </span>
         </div>
     </div>
 
@@ -65,15 +48,31 @@ function formatNTD(value) {
         <div class="card mb-0">
             <div class="flex justify-between mb-4">
                 <div>
-                    <span class="block text-muted-color font-medium mb-4">每月訂閱費</span>
-                    <div class="text-surface-900 dark:text-surface-0 font-medium text-xl">{{ formatNTD(totalSubscription) }}</div>
+                    <span class="block text-muted-color font-medium mb-4">F 負擔</span>
+                    <div class="text-surface-900 dark:text-surface-0 font-medium text-xl">{{ fmt(fTotal) }}</div>
                 </div>
-                <div class="flex items-center justify-center bg-purple-100 dark:bg-purple-400/10 rounded-border" style="width: 2.5rem; height: 2.5rem">
-                    <i class="pi pi-credit-card text-purple-500 text-xl!"></i>
+                <div class="flex items-center justify-center bg-orange-100 dark:bg-orange-400/10 rounded-border" style="width:2.5rem;height:2.5rem">
+                    <i class="pi pi-users text-orange-500 text-xl!"></i>
                 </div>
             </div>
-            <span class="text-purple-500 font-medium">{{ subscriptionCount }} 項服務 </span>
-            <span class="text-muted-color">訂閱中</span>
+            <span class="text-muted-color text-sm">
+                {{ totalExpense ? ((fTotal / totalExpense) * 100).toFixed(1) : '0.0' }}% 佔比
+            </span>
+        </div>
+    </div>
+
+    <div class="col-span-12 lg:col-span-6 xl:col-span-3">
+        <div class="card mb-0">
+            <div class="flex justify-between mb-4">
+                <div>
+                    <span class="block text-muted-color font-medium mb-4">今日支出</span>
+                    <div class="text-surface-900 dark:text-surface-0 font-medium text-xl">{{ fmt(todayExpense) }}</div>
+                </div>
+                <div class="flex items-center justify-center bg-green-100 dark:bg-green-400/10 rounded-border" style="width:2.5rem;height:2.5rem">
+                    <i class="pi pi-calendar-clock text-green-500 text-xl!"></i>
+                </div>
+            </div>
+            <span class="text-muted-color text-sm">今日所有消費加總</span>
         </div>
     </div>
 </template>

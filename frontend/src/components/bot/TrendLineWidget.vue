@@ -12,8 +12,9 @@ const props = defineProps({
 });
 
 const months = computed(() => props.trend.months || []);
-const incomeValues = computed(() => props.trend.incomeValues || []);
 const expenseValues = computed(() => props.trend.expenseValues || []);
+const tValues = computed(() => props.trend.tValues || []);
+const fValues = computed(() => props.trend.fValues || []);
 
 function setChartData() {
     const documentStyle = getComputedStyle(document.documentElement);
@@ -21,26 +22,37 @@ function setChartData() {
         labels: months.value,
         datasets: [
             {
-                label: '月收入',
-                data: incomeValues.value,
-                fill: true,
-                backgroundColor: `${documentStyle.getPropertyValue('--p-primary-500')}20`,
-                borderColor: documentStyle.getPropertyValue('--p-primary-500'),
-                tension: 0.4,
-                pointBackgroundColor: documentStyle.getPropertyValue('--p-primary-500'),
-                pointRadius: 5,
-                pointHoverRadius: 7
-            },
-            {
-                label: '月支出',
+                label: '總支出',
                 data: expenseValues.value,
                 fill: true,
-                backgroundColor: `rgba(239,68,68,0.1)`,
+                backgroundColor: 'rgba(239,68,68,0.08)',
                 borderColor: 'rgb(239,68,68)',
                 tension: 0.4,
                 pointBackgroundColor: 'rgb(239,68,68)',
                 pointRadius: 5,
                 pointHoverRadius: 7
+            },
+            {
+                label: 'T 負擔',
+                data: tValues.value,
+                fill: false,
+                borderColor: documentStyle.getPropertyValue('--p-primary-500'),
+                borderDash: [5, 5],
+                tension: 0.4,
+                pointBackgroundColor: documentStyle.getPropertyValue('--p-primary-500'),
+                pointRadius: 4,
+                pointHoverRadius: 6
+            },
+            {
+                label: 'F 負擔',
+                data: fValues.value,
+                fill: false,
+                borderColor: '#F59E0B',
+                borderDash: [5, 5],
+                tension: 0.4,
+                pointBackgroundColor: '#F59E0B',
+                pointRadius: 4,
+                pointHoverRadius: 6
             }
         ]
     };
@@ -55,9 +67,7 @@ function setChartOptions() {
     return {
         maintainAspectRatio: false,
         plugins: {
-            legend: {
-                labels: { color: textColor, usePointStyle: true }
-            },
+            legend: { labels: { color: textColor, usePointStyle: true } },
             tooltip: {
                 callbacks: {
                     label: (ctx) => ` NT$ ${ctx.parsed.y.toLocaleString()}`
@@ -65,15 +75,9 @@ function setChartOptions() {
             }
         },
         scales: {
-            x: {
-                ticks: { color: textMutedColor },
-                grid: { color: borderColor }
-            },
+            x: { ticks: { color: textMutedColor }, grid: { color: borderColor } },
             y: {
-                ticks: {
-                    color: textMutedColor,
-                    callback: (v) => `${(v / 1000).toFixed(0)}k`
-                },
+                ticks: { color: textMutedColor, callback: (v) => `${(v / 1000).toFixed(0)}k` },
                 grid: { color: borderColor }
             }
         }
@@ -90,17 +94,21 @@ watch([() => layoutConfig.primary, () => layoutConfig.surface, isDarkTheme, () =
     <div class="card">
         <div class="flex items-center justify-between mb-6">
             <div>
-                <div class="font-semibold text-xl">月度收支趨勢</div>
-                <div class="text-muted-color text-sm mt-1">近 6 個月收入與支出變化</div>
+                <div class="font-semibold text-xl">月度支出趨勢</div>
+                <div class="text-muted-color text-sm mt-1">近 6 個月 T / F 負擔變化</div>
             </div>
-            <div class="flex gap-4">
-                <div class="flex items-center gap-2">
-                    <div class="w-3 h-1 rounded bg-primary"></div>
-                    <span class="text-muted-color text-sm">收入</span>
-                </div>
+            <div class="flex gap-4 flex-wrap">
                 <div class="flex items-center gap-2">
                     <div class="w-3 h-1 rounded bg-red-500"></div>
-                    <span class="text-muted-color text-sm">支出</span>
+                    <span class="text-muted-color text-sm">總支出</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-1 rounded bg-primary"></div>
+                    <span class="text-muted-color text-sm">T 負擔</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-1 rounded" style="background:#F59E0B"></div>
+                    <span class="text-muted-color text-sm">F 負擔</span>
                 </div>
             </div>
         </div>

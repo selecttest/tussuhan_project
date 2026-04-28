@@ -3,9 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from config import Config
-from demo_data import ALLOCATIONS, EXPENSE_RECORDS, INCOME_RECORDS, SUBSCRIPTIONS
+from demo_data import EXPENSE_RECORDS
 from expense_parser import ExpenseCommand
-from income_parser import IncomeCommand
 
 
 def _to_number(value: Any) -> float:
@@ -41,31 +40,12 @@ class SheetsClient:
     def using_demo_data(self) -> bool:
         return self.config.demo_mode or not self.config.has_google_sheets_config
 
-    def income_records(self) -> list[dict[str, Any]]:
-        if self.using_demo_data:
-            return list(INCOME_RECORDS)
-
-        rows = self._worksheet_records(self.config.income_sheet_name)
-        return [
-            {
-                "name": row.get("名稱", ""),
-                "date": _normalize_date(row.get("收入日期")),
-                "type": row.get("收入種類", ""),
-                "amount": int(_to_number(row.get("收入金額"))),
-                "month": row.get("月份總表") or _month_from_date(row.get("收入日期")),
-            }
-            for row in rows
-        ]
-
     def expense_records(self) -> list[dict[str, Any]]:
         if self.using_demo_data:
             return list(EXPENSE_RECORDS)
 
         rows = self._worksheet_records(self.config.expense_sheet_name)
-        return [
-            self._normalize_expense_row(row)
-            for row in rows
-        ]
+        return [self._normalize_expense_row(row) for row in rows]
 
     def append_expense(self, command: ExpenseCommand) -> dict[str, Any]:
         if self.using_demo_data:
@@ -74,45 +54,6 @@ class SheetsClient:
         worksheet = self._open_spreadsheet().worksheet(self.config.expense_sheet_name)
         worksheet.append_row(command.to_sheet_row(), value_input_option="USER_ENTERED")
         return command.to_record()
-
-    def append_income(self, command: IncomeCommand) -> dict[str, Any]:
-        if self.using_demo_data:
-            return command.to_record()
-
-        worksheet = self._open_spreadsheet().worksheet(self.config.income_sheet_name)
-        worksheet.append_row(command.to_sheet_row(), value_input_option="USER_ENTERED")
-        return command.to_record()
-
-    def allocations(self) -> list[dict[str, Any]]:
-        if self.using_demo_data:
-            return list(ALLOCATIONS)
-
-        rows = self._worksheet_records(self.config.allocation_sheet_name)
-        return [
-            {
-                "label": row.get("名稱", ""),
-                "pct": _to_number(row.get("分配比例")),
-                "description": row.get("說明", ""),
-            }
-            for row in rows
-        ]
-
-    def subscriptions(self) -> list[dict[str, Any]]:
-        if self.using_demo_data:
-            return list(SUBSCRIPTIONS)
-
-        rows = self._worksheet_records(self.config.subscription_sheet_name)
-        return [
-            {
-                "name": row.get("服務名稱", ""),
-                "fee": int(_to_number(row.get("每月費用"))),
-                "cycle": row.get("計費週期", "月繳"),
-                "status": row.get("狀態", "啟用"),
-                "icon": row.get("圖示", "pi-credit-card"),
-                "color": row.get("顏色", "#64748B"),
-            }
-            for row in rows
-        ]
 
     def _worksheet_records(self, worksheet_name: str) -> list[dict[str, Any]]:
         worksheet = self._open_spreadsheet().worksheet(worksheet_name)
@@ -142,7 +83,7 @@ class SheetsClient:
             "fPaid": f_paid,
             "t_paid": t_paid,
             "f_paid": f_paid,
-            "month": row.get("月份") or _month_from_date(expense_date),
+            "month": _month_from_date(expense_date),
         }
 
     def _open_spreadsheet(self):
@@ -153,7 +94,7 @@ class SheetsClient:
             import gspread
             from google.oauth2.service_account import Credentials
         except ImportError as exc:
-            raise RuntimeError("請先安裝 gspread 與 google-auth，或設定 DEMO_MODE=true 使用 demo 資料") from exc
+            raise RuntimeError("請先安裝 gspread 與 google-auth") from exc
 
         scopes = ["https://www.googleapis.com/auth/spreadsheets"]
         credentials = Credentials.from_service_account_file(

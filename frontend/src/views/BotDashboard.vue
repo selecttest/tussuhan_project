@@ -15,23 +15,21 @@ const selectedMonth = ref('');
 const lastUpdatedAt = ref('');
 
 const stats = computed(() => dashboard.value?.stats || {});
-const income = computed(() => dashboard.value?.income || {});
-const revenue = computed(() => dashboard.value?.revenue || {});
-const allocation = computed(() => dashboard.value?.allocation || {});
+const typeBreakdown = computed(() => dashboard.value?.typeBreakdown || {});
 const trend = computed(() => dashboard.value?.trend || {});
-const subscriptions = computed(() => dashboard.value?.subscriptions || {});
+const payerSplit = computed(() => dashboard.value?.payerSplit || {});
+const expense = computed(() => dashboard.value?.expense || {});
 const displayMonth = computed(() => stats.value.month || selectedMonth.value || '最新月份');
 
 async function loadDashboard(month = selectedMonth.value) {
     loading.value = true;
     error.value = '';
-
     try {
         dashboard.value = await fetchDashboardData(month);
-        selectedMonth.value = dashboard.value?.stats?.month || dashboard.value?.income?.month || month || '';
+        selectedMonth.value = dashboard.value?.stats?.month || month || '';
         lastUpdatedAt.value = new Date().toLocaleString('zh-TW');
     } catch (err) {
-        error.value = err instanceof Error ? err.message : '無法載入 Google Sheets 資料';
+        error.value = err instanceof Error ? err.message : '無法載入資料';
     } finally {
         loading.value = false;
     }
@@ -42,17 +40,15 @@ function handleMonthChange(month) {
     loadDashboard(month);
 }
 
-onMounted(() => {
-    loadDashboard();
-});
+onMounted(() => loadDashboard());
 </script>
 
 <template>
     <div class="flex flex-col gap-6">
         <!-- 頁首 -->
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between flex-wrap gap-3">
             <div>
-                <h1 class="text-2xl font-bold text-surface-900 dark:text-surface-0">收入理財 Dashboard</h1>
+                <h1 class="text-2xl font-bold text-surface-900 dark:text-surface-0">支出記帳 Dashboard</h1>
                 <p class="text-muted-color mt-1">Google Sheets 真實數據 · {{ displayMonth }}</p>
             </div>
             <div class="flex items-center gap-3 text-sm">
@@ -62,27 +58,26 @@ onMounted(() => {
         </div>
 
         <Message v-if="error" severity="error" :closable="false">{{ error }}</Message>
-        <Message v-else-if="loading && !dashboard" severity="info" :closable="false">正在載入 Google Sheets 資料...</Message>
+        <Message v-else-if="loading && !dashboard" severity="info" :closable="false">正在載入資料...</Message>
 
         <template v-if="dashboard">
-            <!-- 統計卡片 -->
+            <!-- 4 張統計卡片 -->
             <div class="grid grid-cols-12 gap-6">
                 <IncomeStatsWidget
-                    :total-income="stats.totalIncome || 0"
                     :total-expense="stats.totalExpense || 0"
-                    :net-income="stats.netIncome || 0"
-                    :total-subscription="stats.totalSubscription || 0"
-                    :subscription-count="stats.subscriptionCount || 0"
+                    :t-total="stats.tTotal || 0"
+                    :f-total="stats.fTotal || 0"
+                    :today-expense="stats.todayExpense || 0"
                 />
             </div>
 
-            <!-- 營收環形圖 + 財務分配長條圖 -->
+            <!-- 分類圓餅圖 + T/F 分類橫條圖 -->
             <div class="grid grid-cols-12 gap-6">
                 <div class="col-span-12 xl:col-span-5">
-                    <RevenueDonutWidget :revenue="revenue" />
+                    <RevenueDonutWidget :type-breakdown="typeBreakdown" />
                 </div>
                 <div class="col-span-12 xl:col-span-7">
-                    <AllocationBarWidget :allocation="allocation" />
+                    <AllocationBarWidget :payer-split="payerSplit" />
                 </div>
             </div>
 
@@ -93,17 +88,17 @@ onMounted(() => {
                 </div>
             </div>
 
-            <!-- 訂閱費用 + 收入紀錄表格 -->
+            <!-- T/F 比例圓餅 + 支出紀錄表格 -->
             <div class="grid grid-cols-12 gap-6">
                 <div class="col-span-12 xl:col-span-4">
-                    <SubscriptionDonutWidget :subscriptions="subscriptions" />
+                    <SubscriptionDonutWidget :payer-split="payerSplit" />
                 </div>
                 <div class="col-span-12 xl:col-span-8">
                     <IncomeTableWidget
                         :month="selectedMonth"
-                        :available-months="income.availableMonths || []"
-                        :records="income.records || []"
-                        :total="income.total || 0"
+                        :available-months="expense.availableMonths || []"
+                        :records="expense.records || []"
+                        :total="expense.total || 0"
                         @update:month="handleMonthChange"
                     />
                 </div>
