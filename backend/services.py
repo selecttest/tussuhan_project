@@ -31,6 +31,15 @@ class DashboardService:
             "availableMonths": sort_months({r["month"] for r in records}),
         }
 
+    def all_expenses(self) -> dict[str, Any]:
+        records = self.sheets.expense_records()
+        sorted_records = sorted(records, key=lambda r: r.get("date", ""), reverse=True)
+        return {
+            "total": sum(r["amount"] for r in records),
+            "records": sorted_records,
+            "availableMonths": sort_months({r["month"] for r in records}),
+        }
+
     def stats(self, month: str | None = None) -> dict[str, Any]:
         records = self.sheets.expense_records()
         selected_month = month or self._latest_month(records)

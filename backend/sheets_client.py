@@ -23,11 +23,35 @@ def _normalize_date(value: Any) -> str:
     return str(value or "").replace("-", "/").strip()
 
 
+def _is_year(s: str) -> bool:
+    return s.isdigit() and 1990 <= int(s) <= 2100
+
+
+def _is_month(s: str) -> bool:
+    return s.isdigit() and 1 <= int(s) <= 12
+
+
 def _month_from_date(value: Any) -> str:
-    text = _normalize_date(value)
+    # Handle Python date/datetime objects directly
+    if hasattr(value, "year") and hasattr(value, "month"):
+        if 1990 <= value.year <= 2100 and 1 <= value.month <= 12:
+            return f"{value.year:04d}-{value.month:02d}"
+        return ""
+
+    text = _normalize_date(value).split()[0].split("T")[0]
     parts = text.split("/")
-    if len(parts) >= 2 and parts[0].isdigit() and parts[1].isdigit():
+
+    if len(parts) < 2:
+        return ""
+
+    # YYYY/M/D or YYYY/MM/DD (app standard)
+    if _is_year(parts[0]) and _is_month(parts[1]):
         return f"{int(parts[0]):04d}-{int(parts[1]):02d}"
+
+    # M/D/YYYY or MM/DD/YYYY (US format — gspread may return this)
+    if len(parts) >= 3 and _is_year(parts[2]) and _is_month(parts[0]):
+        return f"{int(parts[2]):04d}-{int(parts[0]):02d}"
+
     return ""
 
 
@@ -45,7 +69,8 @@ class SheetsClient:
             return list(EXPENSE_RECORDS)
 
         rows = self._worksheet_records(self.config.expense_sheet_name)
-        return [self._normalize_expense_row(row) for row in rows]
+        results = [self._normalize_expense_row(row) for row in rows]
+        return [r for r in results if r["month"] and r["amount"] > 0]
 
     def append_expense(self, command: ExpenseCommand) -> dict[str, Any]:
         if self.using_demo_data:

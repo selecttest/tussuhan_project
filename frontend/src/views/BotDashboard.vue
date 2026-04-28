@@ -1,5 +1,6 @@
 <script setup>
 import AllocationBarWidget from '@/components/bot/AllocationBarWidget.vue';
+import DashboardLoading from '@/components/bot/DashboardLoading.vue';
 import IncomeStatsWidget from '@/components/bot/IncomeStatsWidget.vue';
 import IncomeTableWidget from '@/components/bot/IncomeTableWidget.vue';
 import RevenueDonutWidget from '@/components/bot/RevenueDonutWidget.vue';
@@ -7,6 +8,9 @@ import SubscriptionDonutWidget from '@/components/bot/SubscriptionDonutWidget.vu
 import TrendLineWidget from '@/components/bot/TrendLineWidget.vue';
 import { fetchDashboardData } from '@/service/DashboardApi';
 import { computed, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 const dashboard = ref(null);
 const loading = ref(false);
@@ -58,7 +62,14 @@ onMounted(() => loadDashboard());
         </div>
 
         <Message v-if="error" severity="error" :closable="false">{{ error }}</Message>
-        <Message v-else-if="loading && !dashboard" severity="info" :closable="false">正在載入資料...</Message>
+
+        <!-- Loading：顯示在頁首下方、內容區中間 -->
+        <Transition name="fade">
+            <DashboardLoading
+                v-if="loading"
+                :message="dashboard ? '重新整理資料中...' : '正在從 Google Sheets 載入資料...'"
+            />
+        </Transition>
 
         <template v-if="dashboard">
             <!-- 4 張統計卡片 -->
@@ -89,6 +100,17 @@ onMounted(() => loadDashboard());
             </div>
 
             <!-- T/F 比例圓餅 + 支出紀錄表格 -->
+            <div class="flex items-center justify-between">
+                <span class="text-muted-color text-sm font-medium">T / F 負擔比例 · 支出紀錄</span>
+                <Button
+                    label="查看完整紀錄"
+                    icon="pi pi-arrow-right"
+                    icon-pos="right"
+                    size="small"
+                    text
+                    @click="router.push('/bot/expense-records')"
+                />
+            </div>
             <div class="grid grid-cols-12 gap-6">
                 <div class="col-span-12 xl:col-span-4">
                     <SubscriptionDonutWidget :payer-split="payerSplit" />

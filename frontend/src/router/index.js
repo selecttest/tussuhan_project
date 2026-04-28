@@ -19,6 +19,11 @@ const router = createRouter({
                     component: () => import('@/views/BotDashboard.vue')
                 },
                 {
+                    path: '/bot/expense-records',
+                    name: 'expenseRecords',
+                    component: () => import('@/views/ExpenseRecordsPage.vue')
+                },
+                {
                     path: '/uikit/formlayout',
                     name: 'formlayout',
                     component: () => import('@/views/uikit/FormLayout.vue')

@@ -81,6 +81,11 @@ def dashboard(service: DashboardDependency, month: MonthQuery = None):
     return service.dashboard(month)
 
 
+@router.get("/api/expense/all")
+def expense_all(service: DashboardDependency):
+    return service.all_expenses()
+
+
 @router.get("/api/expense")
 def expense(service: DashboardDependency, month: MonthQuery = None):
     return service.expenses(month)
