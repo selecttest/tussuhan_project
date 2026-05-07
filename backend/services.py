@@ -29,6 +29,7 @@ class DashboardService:
             "total": sum(r["amount"] for r in filtered),
             "records": filtered,
             "availableMonths": sort_months({r["month"] for r in records}),
+            "dataSource": "demo" if self.sheets.using_demo_data else "google_sheets",
         }
 
     def all_expenses(self) -> dict[str, Any]:
@@ -38,6 +39,7 @@ class DashboardService:
             "total": sum(r["amount"] for r in records),
             "records": sorted_records,
             "availableMonths": sort_months({r["month"] for r in records}),
+            "dataSource": "demo" if self.sheets.using_demo_data else "google_sheets",
         }
 
     def stats(self, month: str | None = None) -> dict[str, Any]:
@@ -177,6 +179,34 @@ class DashboardService:
                 "F_paid": command.f_paid,
             },
         }
+
+    def update_expense_row(self, sheet_row: int, payload: dict[str, Any]) -> dict[str, Any]:
+        if self.sheets.using_demo_data:
+            raise ValueError("示範資料模式無法編輯支出，請設定 Google Sheets。")
+        amount = int(payload["amount"])
+        t_paid = int(payload["tPaid"])
+        f_paid = int(payload["fPaid"])
+        if t_paid + f_paid != amount:
+            raise ValueError("T 付與 F 付合計必須等於總金額")
+        payer = str(payload["payer"]).strip().upper()
+        if payer not in {"T", "F"}:
+            raise ValueError("付款人必須為 T 或 F")
+        self.sheets.update_expense_row(
+            sheet_row,
+            date=str(payload["date"]).strip(),
+            expense_type=str(payload["type"]).strip(),
+            detail=str(payload["detail"]).strip(),
+            amount=amount,
+            payer=payer,
+            t_paid=t_paid,
+            f_paid=f_paid,
+        )
+        return {"ok": True}
+
+    def delete_expense_row(self, sheet_row: int) -> None:
+        if self.sheets.using_demo_data:
+            raise ValueError("示範資料模式無法刪除支出，請設定 Google Sheets。")
+        self.sheets.delete_expense_row(sheet_row)
 
     def dashboard(self, month: str | None = None) -> dict[str, Any]:
         records = self.sheets.expense_records()

@@ -1,12 +1,14 @@
 <script setup>
 import DashboardLoading from '@/components/bot/DashboardLoading.vue';
-import { fetchAllExpenseRecords, fetchExpenseRecords } from '@/service/DashboardApi';
+import { deleteExpenseRow, fetchAllExpenseRecords, fetchExpenseRecords, updateExpenseRow } from '@/service/DashboardApi';
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { useToast } from 'primevue/usetoast';
 
 const ALL = '__all__';
 
 const router = useRouter();
+const toast = useToast();
 const loading = ref(false);
 const error = ref('');
 const selectedMonth = ref(ALL);
@@ -17,6 +19,31 @@ const filteredRecords = ref([]);
 const monthTotal = ref(0);
 const lastUpdatedAt = ref('');
 const showColPanel = ref(false);
+/** 後端 expense API：demo | google_sheets */
+const dataSource = ref('');
+
+const EDIT_TYPE_OPTIONS = ['Food', 'Baby', 'Drink', 'Tuition', 'Other', 'Insurance'];
+const PAYER_SELECT_OPTIONS = [
+    { label: 'T', value: 'T' },
+    { label: 'F', value: 'F' },
+];
+
+const editDialogVisible = ref(false);
+const editSaving = ref(false);
+const editSheetRow = ref(null);
+const editForm = reactive({
+    date: '',
+    type: 'Food',
+    detail: '',
+    amount: 0,
+    payer: 'T',
+    tPaid: 0,
+    fPaid: 0,
+});
+
+const deleteDialogVisible = ref(false);
+const deleteTarget = ref(null);
+const deleteLoading = ref(false);
 
 /* 欄位可見度：日期固定顯示，其餘可切換 */
 const colVisible = reactive({
@@ -87,6 +114,88 @@ const displayTotal = computed(() =>
     displayRecords.value.reduce((s, r) => s + Number(r.amount || 0), 0)
 );
 
+function rowEditable(row) {
+    const n = Number(row.sheetRow);
+    return row.sheetRow != null && Number.isFinite(n) && n >= 2;
+}
+
+function openEdit(row) {
+    if (!rowEditable(row)) return;
+    editSheetRow.value = row.sheetRow;
+    editForm.date = row.date ?? '';
+    editForm.type = row.type ?? 'Other';
+    editForm.detail = row.detail ?? '';
+    editForm.amount = Number(row.amount || 0);
+    editForm.payer = row.payer === 'F' ? 'F' : 'T';
+    editForm.tPaid = Number(row.tPaid ?? row.t_paid ?? 0);
+    editForm.fPaid = Number(row.fPaid ?? row.f_paid ?? 0);
+    editDialogVisible.value = true;
+}
+
+async function saveEdit() {
+    if (editForm.tPaid + editForm.fPaid !== editForm.amount) {
+        toast.add({
+            severity: 'warn',
+            summary: '無法儲存',
+            detail: 'T 付 + F 付 必須等於金額',
+            life: 4000,
+        });
+        return;
+    }
+    editSaving.value = true;
+    try {
+        await updateExpenseRow(editSheetRow.value, {
+            date: editForm.date,
+            type: editForm.type,
+            detail: editForm.detail,
+            amount: editForm.amount,
+            payer: editForm.payer,
+            tPaid: editForm.tPaid,
+            fPaid: editForm.fPaid,
+        });
+        toast.add({ severity: 'success', summary: '已更新', life: 2500 });
+        editDialogVisible.value = false;
+        await handleMonthChange(selectedMonth.value);
+    } catch (err) {
+        toast.add({
+            severity: 'error',
+            summary: '更新失敗',
+            detail: err instanceof Error ? err.message : '請稍後再試',
+            life: 5000,
+        });
+    } finally {
+        editSaving.value = false;
+    }
+}
+
+function askDelete(row) {
+    if (!rowEditable(row)) return;
+    deleteTarget.value = row;
+    deleteDialogVisible.value = true;
+}
+
+async function confirmDelete() {
+    const row = deleteTarget.value;
+    if (!row?.sheetRow) return;
+    deleteLoading.value = true;
+    try {
+        await deleteExpenseRow(row.sheetRow);
+        toast.add({ severity: 'success', summary: '已刪除', life: 2500 });
+        deleteDialogVisible.value = false;
+        deleteTarget.value = null;
+        await handleMonthChange(selectedMonth.value);
+    } catch (err) {
+        toast.add({
+            severity: 'error',
+            summary: '刪除失敗',
+            detail: err instanceof Error ? err.message : '請稍後再試',
+            life: 5000,
+        });
+    } finally {
+        deleteLoading.value = false;
+    }
+}
+
 /* ── 資料載入 ── */
 async function loadAll() {
     loading.value = true;
@@ -97,6 +206,7 @@ async function loadAll() {
         availableMonths.value = data.availableMonths || [];
         filteredRecords.value = allRecords.value;
         monthTotal.value      = data.total || 0;
+        dataSource.value      = data.dataSource || '';
         lastUpdatedAt.value   = new Date().toLocaleString('zh-TW');
     } catch (err) {
         error.value = err instanceof Error ? err.message : '無法載入資料';
@@ -112,6 +222,7 @@ async function loadMonth(month) {
         const data = await fetchExpenseRecords(month);
         filteredRecords.value = data.records || [];
         monthTotal.value      = data.total || 0;
+        dataSource.value     = data.dataSource || '';
         if (data.availableMonths?.length) availableMonths.value = data.availableMonths;
         lastUpdatedAt.value = new Date().toLocaleString('zh-TW');
     } catch (err) {
@@ -121,11 +232,11 @@ async function loadMonth(month) {
     }
 }
 
-function handleMonthChange(val) {
+async function handleMonthChange(val) {
     selectedMonth.value = val;
     selectedTypes.value = [];
-    if (val === ALL) loadAll();
-    else loadMonth(val);
+    if (val === ALL) await loadAll();
+    else await loadMonth(val);
 }
 
 function clearFilters() {
@@ -163,6 +274,18 @@ onMounted(() => {
         </div>
 
         <Message v-if="error" severity="error" :closable="false">{{ error }}</Message>
+
+        <Message
+            v-if="displayRecords.length && dataSource === 'demo'"
+            severity="info"
+            :closable="false"
+            class="text-sm"
+        >
+            目前後端使用<strong>示範資料</strong>（未讀取 Google Sheets），此頁無法編輯或刪除。請設定
+            <code class="text-xs bg-surface-100 dark:bg-surface-800 px-1 rounded">GOOGLE_SHEETS_ID</code>、
+            <code class="text-xs bg-surface-100 dark:bg-surface-800 px-1 rounded">GOOGLE_CREDENTIALS_PATH</code>
+            並重啟後端，再按「重新整理」。
+        </Message>
 
         <div class="card">
             <!-- ── 工具列：月份 / 篩選 / 欄位 ── -->
@@ -308,9 +431,133 @@ onMounted(() => {
                         </div>
                     </template>
                 </Column>
+
+                <Column header="操作" style="width:104px" :exportable="false">
+                    <template #body="{ data }">
+                        <div class="flex gap-0.5">
+                            <Button
+                                icon="pi pi-pencil"
+                                rounded
+                                text
+                                size="small"
+                                :disabled="!rowEditable(data)"
+                                v-tooltip.top="'編輯'"
+                                @click="openEdit(data)"
+                            />
+                            <Button
+                                icon="pi pi-trash"
+                                rounded
+                                text
+                                size="small"
+                                severity="danger"
+                                :disabled="!rowEditable(data)"
+                                v-tooltip.top="'刪除'"
+                                @click="askDelete(data)"
+                            />
+                        </div>
+                    </template>
+                </Column>
             </DataTable>
         </div>
     </div>
+
+    <Dialog
+        v-model:visible="editDialogVisible"
+        header="編輯支出"
+        :modal="true"
+        :style="{ width: 'min(440px, 96vw)' }"
+        :dismissable-mask="true"
+    >
+        <div class="flex flex-col gap-3 pt-2">
+            <div>
+                <label for="edit-date" class="text-sm text-muted-color block mb-1">日期</label>
+                <InputText id="edit-date" v-model="editForm.date" class="w-full" placeholder="例：2026/4/7" />
+            </div>
+            <div>
+                <label for="edit-type" class="text-sm text-muted-color block mb-1">分類</label>
+                <Select
+                    id="edit-type"
+                    v-model="editForm.type"
+                    :options="EDIT_TYPE_OPTIONS"
+                    class="w-full"
+                    placeholder="選擇分類"
+                />
+            </div>
+            <div>
+                <label for="edit-detail" class="text-sm text-muted-color block mb-1">品項</label>
+                <InputText id="edit-detail" v-model="editForm.detail" class="w-full" />
+            </div>
+            <div>
+                <label for="edit-amount" class="text-sm text-muted-color block mb-1">總金額</label>
+                <InputNumber
+                    id="edit-amount"
+                    v-model="editForm.amount"
+                    class="w-full"
+                    :min="0"
+                    fluid
+                    :use-grouping="true"
+                />
+            </div>
+            <div>
+                <label for="edit-payer" class="text-sm text-muted-color block mb-1">結帳（付款人）</label>
+                <Select
+                    id="edit-payer"
+                    v-model="editForm.payer"
+                    :options="PAYER_SELECT_OPTIONS"
+                    option-label="label"
+                    option-value="value"
+                    class="w-full"
+                />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label for="edit-tpaid" class="text-sm text-muted-color block mb-1">T 付</label>
+                    <InputNumber
+                        id="edit-tpaid"
+                        v-model="editForm.tPaid"
+                        class="w-full"
+                        :min="0"
+                        fluid
+                        :use-grouping="true"
+                    />
+                </div>
+                <div>
+                    <label for="edit-fpaid" class="text-sm text-muted-color block mb-1">F 付</label>
+                    <InputNumber
+                        id="edit-fpaid"
+                        v-model="editForm.fPaid"
+                        class="w-full"
+                        :min="0"
+                        fluid
+                        :use-grouping="true"
+                    />
+                </div>
+            </div>
+            <p class="text-xs text-muted-color m-0">T 付 + F 付 必須等於總金額；儲存後會寫回 Google 試算表同一列。</p>
+        </div>
+        <template #footer>
+            <Button label="取消" text @click="editDialogVisible = false" />
+            <Button label="儲存" icon="pi pi-check" :loading="editSaving" @click="saveEdit" />
+        </template>
+    </Dialog>
+
+    <Dialog
+        v-model:visible="deleteDialogVisible"
+        header="確認刪除"
+        :modal="true"
+        :style="{ width: 'min(400px, 96vw)' }"
+        :dismissable-mask="true"
+    >
+        <p v-if="deleteTarget" class="m-0 leading-relaxed">
+            確定刪除「<strong>{{ deleteTarget.detail }}</strong>」NT$
+            {{ Number(deleteTarget.amount).toLocaleString() }}？<br />
+            將從 Google 試算表刪除該列，且下方列號會遞補，請以「重新整理」確認列表。
+        </p>
+        <template #footer>
+            <Button label="取消" text @click="deleteDialogVisible = false" />
+            <Button label="刪除" icon="pi pi-trash" severity="danger" :loading="deleteLoading" @click="confirmDelete" />
+        </template>
+    </Dialog>
 
     <!-- 點擊浮層外部關閉欄位面板 -->
     <div v-if="showColPanel" class="fixed inset-0 z-[5]" @click="showColPanel = false" />
