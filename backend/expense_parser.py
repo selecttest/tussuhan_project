@@ -106,8 +106,15 @@ def parse_expense_command(text: str, today: date | None = None) -> ExpenseComman
     if expense_type is None and idx < len(parts):
         maybe_type = _normalize_category(parts[idx], strict=False)
         if maybe_type is not None:
-            expense_type = maybe_type
-            idx += 1
+            # 避免把「飲料 200」誤判成「分類 + 缺少品項」：
+            # 只有在後面仍足夠組成「品項+金額」時，才把目前 token 當分類。
+            next_idx = idx + 1
+            has_next = next_idx < len(parts)
+            has_detail_and_amount = next_idx + 1 < len(parts)
+            has_compact_detail_amount = has_next and _parse_compact_detail_amount(parts[next_idx]) is not None
+            if has_detail_and_amount or has_compact_detail_amount:
+                expense_type = maybe_type
+                idx += 1
 
     # 新版可選付款人（F/T）
     if payer is None and idx < len(parts) and parts[idx].upper() in {"F", "T"}:
