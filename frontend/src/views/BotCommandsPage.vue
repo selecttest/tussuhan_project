@@ -98,6 +98,16 @@ const COMMANDS = [
                 example: 'help',
                 desc: '顯示完整指令清單（記帳 / 查詢 / 操作）。',
             },
+            {
+                syntax: '記帳 / 單筆',
+                example: '單筆',
+                desc: '顯示單筆記帳教學與範例。',
+            },
+            {
+                syntax: '多筆',
+                example: '多筆',
+                desc: '顯示多筆記帳教學（換行或分號）。',
+            },
         ],
     },
 ];

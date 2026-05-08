@@ -250,6 +250,10 @@ class DashboardService:
 
             if normalized in {"help", "Help", "說明", "幫助", "指令"}:
                 return self._usage_message()
+            if normalized in {"記帳", "單筆"}:
+                return self._usage_single_record_message()
+            if normalized == "多筆":
+                return self._usage_multi_record_message()
 
             multi_commands = self._extract_multi_record_commands(normalized)
             if multi_commands:
@@ -422,7 +426,30 @@ class DashboardService:
             "✏️ 操作\n"
             "• 刪 / 撤銷\n\n"
             "ℹ️ 說明\n"
-            "• help / 說明 / 幫助 / 指令"
+            "• help / 說明 / 幫助 / 指令\n"
+            "• 記帳 / 單筆 / 多筆"
+        )
+
+    def _usage_single_record_message(self) -> str:
+        return (
+            "📝 單筆記帳語法：\n"
+            "• 拉亞 415\n"
+            "• F coco 99\n"
+            "• 早餐+便當 590 分215\n"
+            "• 昨天 拉亞 415\n"
+            "• 餐費 拉亞 415"
+        )
+
+    def _usage_multi_record_message(self) -> str:
+        return (
+            "📝 多筆記帳語法：\n"
+            "• 每筆一行\n"
+            "  拉亞 415\n"
+            "  F coco 99\n"
+            "• 或用 ; / ； 分隔\n"
+            "  拉亞 415; F coco 99; 早餐+便當 590 分215\n"
+            "• 每筆都可帶日期（放最前面）\n"
+            "  昨天 拉亞 415; 5/7 F coco 99"
         )
 
     def _latest_month(self, records: list[dict[str, Any]]) -> str:
