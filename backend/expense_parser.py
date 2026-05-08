@@ -114,12 +114,16 @@ def parse_expense_command(text: str, today: date | None = None) -> ExpenseComman
         payer = parts[idx].upper()
         idx += 1
 
-    if idx + 1 >= len(parts):
-        raise ValueError("格式錯誤，請使用：拉亞 415 / F coco 99 / 早餐+便當 590 分215")
-
-    detail = parts[idx]
-    amount = _parse_amount(parts[idx + 1], "金額")
-    split_amount = _parse_split_amount(parts[idx + 2 :])
+    compact_detail_amount = _parse_compact_detail_amount(parts[idx]) if idx < len(parts) else None
+    if compact_detail_amount and (idx + 1 >= len(parts) or not re.fullmatch(r"\d+", parts[idx + 1])):
+        detail, amount = compact_detail_amount
+        split_amount = _parse_split_amount(parts[idx + 1 :])
+    else:
+        if idx + 1 >= len(parts):
+            raise ValueError("格式錯誤，請使用：拉亞 415 / F coco 99 / 早餐+便當 590 分215")
+        detail = parts[idx]
+        amount = _parse_amount(parts[idx + 1], "金額")
+        split_amount = _parse_split_amount(parts[idx + 2 :])
 
     payer = payer or "T"
     used_category_inference = expense_type is None
@@ -198,6 +202,17 @@ def _parse_amount(value: str, field_name: str) -> int:
     if not re.fullmatch(r"\d+", value):
         raise ValueError(f"{field_name}必須是整數")
     return int(value)
+
+
+def _parse_compact_detail_amount(token: str) -> tuple[str, int] | None:
+    match = re.fullmatch(r"(.+?\D)(\d+)", token)
+    if not match:
+        return None
+    detail = match.group(1).strip()
+    if not detail:
+        return None
+    amount = int(match.group(2))
+    return detail, amount
 
 
 def _parse_split_amount(parts: list[str]) -> int:
