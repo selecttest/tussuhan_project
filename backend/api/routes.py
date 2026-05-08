@@ -47,20 +47,25 @@ def health(service: DashboardDependency, config: ConfigDependency):
     err = service.sheets.spreadsheet_access_error()
     source = "demo" if service.sheets.using_demo_data else "google_sheets"
 
-    env_file = FsPath(__file__).resolve().parent.parent / ".env"
-    env_file_present = env_file.is_file()
+    backend_dir = FsPath(__file__).resolve().parent.parent
+    env_file = backend_dir / ".env"
+    mode_env_file = backend_dir / f".env.{config.app_env}"
+    env_file_present = env_file.is_file() or mode_env_file.is_file()
 
     hint = None
     if not config.has_google_sheets_config:
         if env_file_present:
             hint = (
-                "偵測到 backend/.env 存在，但 GOOGLE_SHEETS_ID / GOOGLE_CREDENTIALS_PATH 未被載入。"
+                "偵測到 backend/.env 或 mode 檔存在，但 GOOGLE_SHEETS_ID / GOOGLE_CREDENTIALS_PATH 未被載入。"
                 "請在終端機按 Ctrl+C 完全關閉 uvicorn 後，在 backend 目錄重新執行："
                 "`py -m uvicorn main:app --reload --host 0.0.0.0 --port 8000`。"
                 "（IDE 除錯執行也需「完全停止」後再啟動，否則設定會卡在快取。）"
             )
         else:
-            hint = "請複製 backend/.env.example 為 backend/.env，設定 GOOGLE_SHEETS_ID 與 GOOGLE_CREDENTIALS_PATH 後重啟 uvicorn。"
+            hint = (
+                "請建立 backend/.env 或 backend/.env.{APP_ENV}，設定 GOOGLE_SHEETS_ID 與 "
+                "GOOGLE_CREDENTIALS_PATH 後重啟 uvicorn。"
+            )
     elif config.has_google_sheets_config and cred and not cred_ok:
         hint = f"找不到憑證檔案，目前解析路徑為：{cred}"
     elif err and "WorksheetNotFound" in err:
@@ -75,10 +80,12 @@ def health(service: DashboardDependency, config: ConfigDependency):
 
     return {
         "status": status,
+        "appEnv": config.app_env,
         "source": source,
         "lineWebhook": "configured" if service.sheets.config.has_line_config else "missing_config",
         "demoMode": config.demo_mode,
         "envFilePresent": env_file_present,
+        "envModeFile": str(mode_env_file.name),
         "googleSheets": {
             "sheetIdConfigured": bool(config.google_sheets_id),
             "credentialsPathResolved": cred or None,

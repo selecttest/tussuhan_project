@@ -12,6 +12,18 @@ pip install -r requirements.txt
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+Mode switch:
+
+```powershell
+# development -> load .env + .env.development
+$env:APP_ENV="development"
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+# production -> load .env + .env.production
+$env:APP_ENV="production"
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
 On Windows PowerShell:
 
 ```powershell
@@ -31,6 +43,12 @@ CORS_ORIGIN=http://localhost:3000
 LINE_CHANNEL_SECRET=your_line_channel_secret
 LINE_CHANNEL_ACCESS_TOKEN=your_line_channel_access_token
 ```
+
+You can split env files by mode:
+
+- `backend/.env` (shared base)
+- `backend/.env.development` (local dev overrides)
+- `backend/.env.production` (production overrides)
 
 If these values are not set, the API returns demo data.
 

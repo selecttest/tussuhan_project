@@ -314,6 +314,25 @@ pip install -r requirements.txt
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+環境切換（開發 / 正式）：
+
+```powershell
+# 開發模式（讀取 backend/.env + backend/.env.development）
+$env:APP_ENV="development"
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+# 正式模式（讀取 backend/.env + backend/.env.production）
+$env:APP_ENV="production"
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+建議先複製範本：
+
+```powershell
+copy backend\.env.development.example backend\.env.development
+copy backend\.env.production.example backend\.env.production
+```
+
 CMD 環境可使用：
 
 ```cmd
@@ -336,6 +355,19 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 cd frontend
 npm install
 npm run dev
+```
+
+前端模式切換：
+
+```powershell
+# 開發模式（讀取 frontend/.env.development）
+npm run dev:development
+
+# 以 production 變數啟動本機（驗證正式參數）
+npm run dev:production
+
+# 正式打包（讀取 frontend/.env.production）
+npm run build:production
 ```
 
 前端預設開發網址為 `http://localhost:3000`。若要預覽 production build：

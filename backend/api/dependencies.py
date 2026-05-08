@@ -5,6 +5,7 @@ from sheets_client import SheetsClient
 
 def _config_fingerprint(cfg: Config) -> tuple:
     return (
+        cfg.app_env,
         cfg.google_sheets_id,
         cfg.google_credentials_path,
         cfg.demo_mode,

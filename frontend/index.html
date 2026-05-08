@@ -10,6 +10,10 @@
 </head>
 
 <body>
+      <!--
+        正式／ngrok：瀏覽器不應請求 localhost:8000。請在 <body> 最上方加入（換成你的「後端」https 網址）：
+        <script>window.__API_BASE__ = 'https://你的後端.ngrok-free.app';</script>
+      -->
       <div id="app"></div>
       <script type="module" src="/src/main.js"></script>
 </body>

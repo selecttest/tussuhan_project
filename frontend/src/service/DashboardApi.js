@@ -1,5 +1,15 @@
 const CONFIGURED_BASE = import.meta.env.VITE_API_BASE_URL;
 
+if (
+    import.meta.env.PROD &&
+    (CONFIGURED_BASE == null || String(CONFIGURED_BASE).trim() === '')
+) {
+    console.warn(
+        '[DashboardApi] 正式環境未設定 VITE_API_BASE_URL，請求會落到預設 http://localhost:8000，瀏覽器會 CORS 失敗或連錯主機。' +
+            '請在 build 前新增 frontend/.env.production 並設定後端公開網址。'
+    );
+}
+
 /**
  * API 根位址。
  * - 有設定 VITE_API_BASE_URL：直接打該後端（正式 build 常用）。

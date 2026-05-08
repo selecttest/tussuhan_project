@@ -1,2 +1,6 @@
 backend/credentials.json
 backend/.env
+backend/.env.development
+backend/.env.production
+frontend/.env.development
+frontend/.env.production

@@ -4,17 +4,34 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
-def _load_dotenv() -> None:
-    """載入 backend/.env。即使未安裝 python-dotenv 也會用內建解析寫入 os.environ。"""
+def _current_app_env() -> str:
+    raw = (os.getenv("APP_ENV", "development") or "development").strip().lower()
+    return raw or "development"
+
+
+def _candidate_env_files() -> list[Path]:
+    """
+    依序載入：
+    1) backend/.env（通用）
+    2) backend/.env.{APP_ENV}（環境覆寫）
+    """
     backend_dir = Path(__file__).resolve().parent
-    env_path = backend_dir / ".env"
+    app_env = _current_app_env()
+    return [backend_dir / ".env", backend_dir / f".env.{app_env}"]
+
+
+def _load_dotenv() -> None:
+    """啟動時載入 env 檔；若安裝 python-dotenv 則先用套件讀取。"""
+    env_files = _candidate_env_files()
     try:
         from dotenv import load_dotenv
-
-        load_dotenv(env_path, override=False)
+        for f in env_files:
+            if f.is_file():
+                load_dotenv(f, override=False)
     except ImportError:
         pass
-    _apply_env_file(env_path, override=False)
+    for f in env_files:
+        _apply_env_file(f, override=False)
 
 
 def _apply_env_file(path: Path, *, override: bool = False) -> None:
@@ -49,10 +66,10 @@ def _apply_env_file(path: Path, *, override: bool = False) -> None:
 
 
 def load_local_env() -> None:
-    """每次建立 Config 前呼叫：開發時更新 .env 後不必重啟 uvicorn（backend/.env 優先）。"""
-    p = Path(__file__).resolve().parent / ".env"
-    if p.is_file():
-        _apply_env_file(p, override=True)
+    """每次建立 Config 前呼叫：同步最新 env 內容，支援 APP_ENV 切換。"""
+    for f in _candidate_env_files():
+        if f.is_file():
+            _apply_env_file(f, override=True)
 
 
 _load_dotenv()
@@ -94,6 +111,7 @@ def _resolve_credentials_path(raw: str) -> str:
 
 @dataclass(frozen=True)
 class Config:
+    app_env: str = field(default_factory=_current_app_env)
     google_sheets_id: str = field(
         default_factory=lambda: _normalize_google_sheets_id(_env_str("GOOGLE_SHEETS_ID"))
     )
@@ -111,6 +129,19 @@ class Config:
     expense_sheet_name: str = field(
         default_factory=lambda: _env_str("EXPENSE_SHEET_NAME", "支出紀錄") or "支出紀錄"
     )
+
+    @property
+    def cors_allow_origins(self) -> list[str]:
+        """
+        CORS 允許的來源。環境變數 CORS_ORIGIN：
+        - 設 * 表示允許任意來源（與 allow_credentials=False 併用時可用）。
+        - 多個網址請用英文逗號分隔，例如：
+          http://localhost:3000,https://xxxx.ngrok-free.dev
+        """
+        raw = (self.cors_origin or "").strip()
+        if not raw or raw == "*":
+            return ["*"]
+        return [o.strip().rstrip("/") for o in raw.split(",") if o.strip()]
 
     @property
     def has_google_sheets_config(self) -> bool:
