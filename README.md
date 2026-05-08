@@ -354,10 +354,10 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```powershell
 cd frontend
 npm install
-npm run dev
+npm run dev:development
 ```
 
-前端模式切換：
+前端模式切換（已內建）：
 
 ```powershell
 # 開發模式（讀取 frontend/.env.development）
@@ -374,7 +374,7 @@ npm run build:production
 
 ```powershell
 cd frontend
-npm run build
+npm run build:production
 npm run preview
 ```
 
@@ -402,14 +402,17 @@ pip install -r backend/requirements.txt
 
 ```bash
 # /etc/environment 或 .env 檔案
+APP_ENV=production
 LINE_CHANNEL_SECRET=your_channel_secret
 LINE_CHANNEL_ACCESS_TOKEN=your_channel_access_token
 GOOGLE_SHEETS_ID=your_spreadsheet_id
 GOOGLE_CREDENTIALS_PATH=/home/your_user/credentials.json
-CORS_ORIGIN=http://localhost:3000
+CORS_ORIGIN=https://your-frontend-domain.com
 ```
 
 若未設定 `GOOGLE_SHEETS_ID` 與 `GOOGLE_CREDENTIALS_PATH`，後端會先回傳 demo data，方便前端開發。設定後會透過 Google Sheets API 讀取試算表資料。
+
+> `CORS_ORIGIN` 支援多個來源（逗號分隔），例如：`http://localhost:3000,https://your-frontend.ngrok-free.dev`。
 
 #### CMD 暫時測試環境變數
 
@@ -531,30 +534,41 @@ sudo systemctl start linebot
 
 ---
 
-## LINE Bot 指令格式
+## LINE Bot 指令格式（新版）
 
 > 完整說明頁面可在 Web Dashboard 側邊選單「Bot 指令說明」查看。
 
-### 記帳指令（`記`）
+### 記帳指令
 
-每個欄位以空白分隔，品項可用 `+` 連接多個名稱，金額只接受正整數，日期自動為今日。
+每個欄位以空白分隔，品項可用 `+` 連接多個名稱，金額只接受正整數。
 
 | 指令格式 | 範例 | 說明 |
 |---------|------|------|
-| `記 [分類] [品項] [金額]` | `記 餐費 拉亞+M 415` | T 付全額。`Payer=T`, `T_paid=415`, `F_paid=0` |
-| `記F [分類] [品項] [金額]` | `記F 飲料 coco 99` | F 付全額。`Payer=F`, `T_paid=0`, `F_paid=99` |
-| `記 [分類] [品項] [金額] 分[F負擔金額]` | `記 餐費 早餐+便當 590 分215` | T 結帳，F 負擔 215。`T_paid=375`, `F_paid=215` |
-| `記F [分類] [品項] [金額] 分[T負擔金額]` | `記F 餐費 聚餐 600 分300` | F 結帳，T 負擔 300。`T_paid=300`, `F_paid=300` |
+| `[品項] [金額]` | `拉亞+M 415` | 極簡記帳。自動推測分類、預設 `T` 付全額、日期為今日 |
+| `F [品項] [金額]` | `F coco 99` | F 付全額。`Payer=F`, `T_paid=0`, `F_paid=金額` |
+| `[品項] [金額] 分[對方負擔金額]` | `早餐+便當 590 分215` | `分X` 永遠代表對方負擔 X。此例 `T_paid=375`, `F_paid=215` |
+| `[類別] [品項] [金額]` | `餐費 拉亞 415` / `Drink 手搖杯 65` | 手動指定分類（中英都可） |
+| `[日期] [F]? [品項] [金額] [分X]?` | `昨天 拉亞 415` / `5/7 F 聚餐 600 分300` | 補記日期（日期需放最前面） |
+| `記 ...` / `記F ...` | `記 餐費 拉亞+M 415` | 舊版語法仍可使用（相容） |
 
-### 查詢指令
+### 日期補記規則
+
+- 支援：`昨天`、`前天`、`M/D`、`YYYY/M/D`
+- 日期不可為未來，且不可早於 30 天前
+
+### 查詢與操作指令
 
 | 指令 | 範例 | 說明 |
 |------|------|------|
-| `查` | `查` | 查詢當月支出摘要（T / F 合計） |
-| `查 [YYYY-MM]` | `查 2026-04` | 查詢指定月份支出摘要 |
-| `今日` | `今日` | 查詢今日所有支出明細（最多 5 筆） |
-| `本月` | `本月` | 查詢本月支出摘要，同 `查` |
-| `help` / `說明` / `幫助` | `help` | 顯示可用指令列表 |
+| `查` | `查` | 本月摘要（總支出、T/F 負擔、結算） |
+| `查 [YYYY-MM]` / `查 [4月]` | `查 2026-04` / `查 4月` | 指定月份摘要 |
+| `查 [分類]` | `查 餐費` | 本月分類小計 |
+| `今日` / `昨天` | `昨天` | 該日支出明細 |
+| `本月` | `本月` | 同 `查` |
+| `最近` / `最近5` | `最近8` | 最近 N 筆紀錄（1~20，預設 5） |
+| `結算` | `結算` | 本月誰該補誰 |
+| `刪` / `撤銷` | `刪` | 刪除最新一筆紀錄（安全限制） |
+| `help` / `說明` / `幫助` / `指令` | `help` | 顯示完整指令清單（記帳 / 查詢 / 操作） |
 
 ### 分類對照表
 
@@ -564,15 +578,20 @@ sudo systemctl start linebot
 | 飲料 / 喝 | `Drink` |
 | 寶寶 / 嬰兒 / 育兒 | `Baby` |
 | 學費 / 補習 | `Tuition` |
+| 保險 / 保費 | `Insurance` |
 | 其他（或直接輸入英文分類名） | `Other` |
 
 ### 記帳回覆範例
 
 ```
-記帳成功！
-Food — 早餐+便當
-金額：$590
-付款：T，T $375 / F $215
+✅ 已記錄
+📅 2026/5/8  Food  早餐+便當  $590 (T付)
+分擔：T $375 / F $215
+
+📊 2026-05累計
+T $12,715
+F $2,315
+合計 $15,030
 ```
 
 ### LINE Developers Webhook 設定

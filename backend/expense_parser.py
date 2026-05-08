@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 import re
 
 
@@ -18,7 +18,22 @@ CATEGORY_ALIASES = {
     "育兒": "Baby",
     "學費": "Tuition",
     "補習": "Tuition",
+    "保險": "Insurance",
+    "保費": "Insurance",
     "其他": "Other",
+}
+
+CANONICAL_CATEGORIES = {"Food", "Drink", "Baby", "Tuition", "Insurance", "Other"}
+DATE_M_D_RE = re.compile(r"^(\d{1,2})/(\d{1,2})$")
+DATE_Y_M_D_RE = re.compile(r"^(\d{4})/(\d{1,2})/(\d{1,2})$")
+
+DETAIL_CATEGORY_HINTS = {
+    "Food": ("拉亞", "便當", "火鍋", "麵", "鴨肉", "早餐", "午餐", "晚餐", "咖啡", "聚餐"),
+    "Drink": ("coco", "可不可", "手搖", "飲料", "茶", "天仁", "迷客夏"),
+    "Baby": ("尿布", "奶粉", "米餅", "副食品", "健保", "嬰兒", "育兒"),
+    "Tuition": ("學費", "補習", "課程", "教材"),
+    "Insurance": ("保險", "保費"),
+    "Other": (),
 }
 
 
@@ -67,17 +82,46 @@ class ExpenseCommand:
 
 def parse_expense_command(text: str, today: date | None = None) -> ExpenseCommand:
     parts = text.strip().split()
-    if len(parts) < 4:
-        raise ValueError("格式錯誤，請使用：記 餐費 拉亞+M 415 或 記F 飲料 coco 99")
+    if len(parts) < 2:
+        raise ValueError("格式錯誤，請使用：拉亞 415 / F coco 99 / 昨天 拉亞 415")
 
-    command = parts[0]
-    payer = _parse_payer(command)
-    expense_type = CATEGORY_ALIASES.get(parts[1], parts[1])
-    detail = parts[2]
-    amount = _parse_amount(parts[3], "金額")
-    split_amount = _parse_split_amount(parts[4:])
+    base_date = today or date.today()
+    record_date, idx = _parse_record_date(parts, base_date)
+
+    payer: str | None = None
+    expense_type: str | None = None
+
+    # 相容舊版：記/記F [分類] [品項] [金額] [分X]
+    if idx < len(parts) and re.fullmatch(r"記([TFtf]?)", parts[idx]):
+        payer = _parse_legacy_payer(parts[idx])
+        idx += 1
+        if idx >= len(parts):
+            raise ValueError("缺少分類，請使用：記 餐費 拉亞+M 415")
+        expense_type = _normalize_category(parts[idx])
+        idx += 1
+
+    # 新版可選類別
+    if expense_type is None and idx < len(parts):
+        maybe_type = _normalize_category(parts[idx], strict=False)
+        if maybe_type is not None:
+            expense_type = maybe_type
+            idx += 1
+
+    # 新版可選付款人（F/T）
+    if payer is None and idx < len(parts) and parts[idx].upper() in {"F", "T"}:
+        payer = parts[idx].upper()
+        idx += 1
+
+    if idx + 1 >= len(parts):
+        raise ValueError("格式錯誤，請使用：拉亞 415 / F coco 99 / 早餐+便當 590 分215")
+
+    detail = parts[idx]
+    amount = _parse_amount(parts[idx + 1], "金額")
+    split_amount = _parse_split_amount(parts[idx + 2 :])
+
+    payer = payer or "T"
+    expense_type = expense_type or _infer_category_from_detail(detail)
     t_paid, f_paid = _split_paid_amount(amount, payer, split_amount)
-    record_date = today or date.today()
 
     return ExpenseCommand(
         date=f"{record_date.year}/{record_date.month}/{record_date.day}",
@@ -90,11 +134,58 @@ def parse_expense_command(text: str, today: date | None = None) -> ExpenseComman
     )
 
 
-def _parse_payer(command: str) -> str:
+def _parse_record_date(parts: list[str], today: date) -> tuple[date, int]:
+    token = parts[0]
+    if token == "昨天":
+        d = today - timedelta(days=1)
+        return d, 1
+    if token == "前天":
+        d = today - timedelta(days=2)
+        return d, 1
+    if m := DATE_M_D_RE.fullmatch(token):
+        month = int(m.group(1))
+        day = int(m.group(2))
+        d = date(today.year, month, day)
+        _validate_record_date(d, today)
+        return d, 1
+    if m := DATE_Y_M_D_RE.fullmatch(token):
+        d = date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        _validate_record_date(d, today)
+        return d, 1
+    return today, 0
+
+
+def _validate_record_date(record_date: date, today: date) -> None:
+    if record_date > today:
+        raise ValueError("補記日期不可為未來日期")
+    if (today - record_date).days > 30:
+        raise ValueError("補記日期不可早於 30 天前")
+
+
+def _parse_legacy_payer(command: str) -> str:
     match = re.fullmatch(r"記([TFtf]?)", command)
     if not match:
-        raise ValueError("指令需以「記」或「記F」開頭")
+        raise ValueError("舊版指令需以「記」或「記F」開頭")
     return (match.group(1) or "T").upper()
+
+
+def _normalize_category(token: str, strict: bool = True) -> str | None:
+    if token in CATEGORY_ALIASES:
+        return CATEGORY_ALIASES[token]
+    normalized = token.strip().capitalize()
+    if normalized in CANONICAL_CATEGORIES:
+        return normalized
+    if strict:
+        raise ValueError(f"不支援的分類：{token}")
+    return None
+
+
+def _infer_category_from_detail(detail: str) -> str:
+    text = detail.lower()
+    for category, hints in DETAIL_CATEGORY_HINTS.items():
+        if any(h.lower() in text for h in hints):
+            return category
+    return "Other"
 
 
 def _parse_amount(value: str, field_name: str) -> int:

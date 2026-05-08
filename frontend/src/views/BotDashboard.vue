@@ -18,6 +18,29 @@ const error = ref('');
 const selectedMonth = ref('');
 const lastUpdatedAt = ref('');
 
+function normalizeType(type) {
+    const t = String(type || '').trim().toLowerCase();
+    return ['food', 'drink', 'baby', 'tuition', 'insurance', 'other'].includes(t) ? t : 'other';
+}
+
+function normalizeDashboardData(raw) {
+    const cloned = { ...(raw || {}) };
+    const expenseRecords = (cloned.expense?.records || []).map((r) => ({ ...r, type: normalizeType(r.type) }));
+    const typeItems = (cloned.typeBreakdown?.items || []).map((i) => ({ ...i, label: normalizeType(i.label) }));
+    const typeLabels = (cloned.typeBreakdown?.chart?.labels || []).map(normalizeType);
+    const byType = (cloned.payerSplit?.byType || []).map((i) => ({ ...i, type: normalizeType(i.type) }));
+    return {
+        ...cloned,
+        expense: { ...(cloned.expense || {}), records: expenseRecords },
+        typeBreakdown: {
+            ...(cloned.typeBreakdown || {}),
+            items: typeItems,
+            chart: { ...(cloned.typeBreakdown?.chart || {}), labels: typeLabels },
+        },
+        payerSplit: { ...(cloned.payerSplit || {}), byType },
+    };
+}
+
 const stats = computed(() => dashboard.value?.stats || {});
 const typeBreakdown = computed(() => dashboard.value?.typeBreakdown || {});
 const trend = computed(() => dashboard.value?.trend || {});
@@ -29,7 +52,7 @@ async function loadDashboard(month = selectedMonth.value) {
     loading.value = true;
     error.value = '';
     try {
-        dashboard.value = await fetchDashboardData(month);
+        dashboard.value = normalizeDashboardData(await fetchDashboardData(month));
         selectedMonth.value = dashboard.value?.stats?.month || month || '';
         lastUpdatedAt.value = new Date().toLocaleString('zh-TW');
     } catch (err) {

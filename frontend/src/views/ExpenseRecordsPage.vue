@@ -22,7 +22,7 @@ const showColPanel = ref(false);
 /** 後端 expense API：demo | google_sheets */
 const dataSource = ref('');
 
-const EDIT_TYPE_OPTIONS = ['Food', 'Baby', 'Drink', 'Tuition', 'Other', 'Insurance'];
+const EDIT_TYPE_OPTIONS = ['food', 'baby', 'drink', 'tuition', 'other', 'insurance'];
 const PAYER_SELECT_OPTIONS = [
     { label: 'T', value: 'T' },
     { label: 'F', value: 'F' },
@@ -33,7 +33,7 @@ const editSaving = ref(false);
 const editSheetRow = ref(null);
 const editForm = reactive({
     date: '',
-    type: 'Food',
+    type: 'food',
     detail: '',
     amount: 0,
     payer: 'T',
@@ -72,18 +72,27 @@ function applyRwdDefaults() {
 
 /* 馬卡龍色系：每種分類使用明顯可區分的柔和色 */
 const TYPE_CLASS = {
-    Food:      'bg-orange-100 text-orange-700 dark:bg-orange-900/60 dark:text-orange-300',
-    Baby:      'bg-pink-100 text-pink-700 dark:bg-pink-900/60 dark:text-pink-300',
-    Drink:     'bg-teal-100 text-teal-700 dark:bg-teal-900/60 dark:text-teal-300',
-    Tuition:   'bg-violet-100 text-violet-700 dark:bg-violet-900/60 dark:text-violet-300',
-    Other:     'bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300',
-    Insurance: 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300',
+    food:      'bg-orange-100 text-orange-700 dark:bg-orange-900/60 dark:text-orange-300',
+    baby:      'bg-pink-100 text-pink-700 dark:bg-pink-900/60 dark:text-pink-300',
+    drink:     'bg-teal-100 text-teal-700 dark:bg-teal-900/60 dark:text-teal-300',
+    tuition:   'bg-violet-100 text-violet-700 dark:bg-violet-900/60 dark:text-violet-300',
+    other:     'bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300',
+    insurance: 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300',
 };
 
 function typeClass(type) {
-    return TYPE_CLASS[type] ?? 'bg-gray-100 text-gray-600 dark:bg-gray-700/60 dark:text-gray-300';
+    return TYPE_CLASS[normalizeType(type)] ?? 'bg-gray-100 text-gray-600 dark:bg-gray-700/60 dark:text-gray-300';
 }
 const PAYER_SEVERITY = { T: 'info', F: 'warn' };
+
+function normalizeType(type) {
+    const t = String(type || '').trim().toLowerCase();
+    return ['food', 'drink', 'baby', 'tuition', 'insurance', 'other'].includes(t) ? t : 'other';
+}
+
+function normalizeRecord(row) {
+    return { ...row, type: normalizeType(row?.type) };
+}
 
 /* 從已載入的紀錄取得所有分類選項 */
 const typeOptions = computed(() => {
@@ -123,7 +132,7 @@ function openEdit(row) {
     if (!rowEditable(row)) return;
     editSheetRow.value = row.sheetRow;
     editForm.date = row.date ?? '';
-    editForm.type = row.type ?? 'Other';
+    editForm.type = normalizeType(row.type);
     editForm.detail = row.detail ?? '';
     editForm.amount = Number(row.amount || 0);
     editForm.payer = row.payer === 'F' ? 'F' : 'T';
@@ -202,7 +211,7 @@ async function loadAll() {
     error.value = '';
     try {
         const data = await fetchAllExpenseRecords();
-        allRecords.value     = data.records || [];
+        allRecords.value     = (data.records || []).map(normalizeRecord);
         availableMonths.value = data.availableMonths || [];
         filteredRecords.value = allRecords.value;
         monthTotal.value      = data.total || 0;
@@ -220,7 +229,7 @@ async function loadMonth(month) {
     error.value = '';
     try {
         const data = await fetchExpenseRecords(month);
-        filteredRecords.value = data.records || [];
+        filteredRecords.value = (data.records || []).map(normalizeRecord);
         monthTotal.value      = data.total || 0;
         dataSource.value     = data.dataSource || '';
         if (data.availableMonths?.length) availableMonths.value = data.availableMonths;
@@ -549,9 +558,9 @@ onMounted(() => {
         :dismissable-mask="true"
     >
         <p v-if="deleteTarget" class="m-0 leading-relaxed">
-            確定刪除「<strong>{{ deleteTarget.detail }}</strong>」NT$
+            刪除「<strong>{{ deleteTarget.detail }}</strong>」NT$
             {{ Number(deleteTarget.amount).toLocaleString() }}？<br />
-            將從 Google 試算表刪除該列，且下方列號會遞補，請以「重新整理」確認列表。
+            將從 Google 試算表刪除該列，請以「重新整理」確認列表。
         </p>
         <template #footer>
             <Button label="取消" text @click="deleteDialogVisible = false" />

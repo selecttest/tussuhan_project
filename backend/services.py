@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date
+from datetime import date, timedelta
+import re
 from typing import Any
 
 from expense_parser import parse_expense_command
@@ -226,67 +227,150 @@ class DashboardService:
             return self._usage_message()
 
         try:
-            if normalized.startswith("記"):
-                result = self.record_expense_command(normalized)
-                record = result["record"]
-                return (
-                    "記帳成功！\n"
-                    f"{record['type']} — {record['detail']}\n"
-                    f"金額：${record['amount']}\n"
-                    f"付款：{record['payer']}，T ${record['tPaid']} / F ${record['fPaid']}"
-                )
-
             if normalized.startswith("查"):
-                return self._line_month_summary(normalized)
+                return self._line_query_summary(normalized)
 
             if normalized == "今日":
                 return self._line_today_summary()
 
-            if normalized == "本月":
-                return self._line_month_summary("查")
+            if normalized == "昨天":
+                return self._line_day_summary(date.today() - timedelta(days=1))
 
-            if normalized in {"help", "Help", "說明", "幫助"}:
+            if normalized == "本月":
+                return self._line_query_summary("查")
+
+            if normalized.startswith("最近"):
+                return self._line_recent_summary(normalized)
+
+            if normalized == "結算":
+                return self._line_settlement_summary(current_month())
+
+            if normalized in {"刪", "撤銷"}:
+                return self._line_delete_last()
+
+            if normalized in {"help", "Help", "說明", "幫助", "指令"}:
                 return self._usage_message()
+
+            # 新版與舊版記帳格式都交給 parser
+            result = self.record_expense_command(normalized)
+            return self._line_record_success(result["record"])
 
         except ValueError as exc:
             return f"{exc}\n\n{self._usage_message()}"
 
         return self._usage_message()
 
-    def _line_month_summary(self, text: str) -> str:
-        month = _parse_month_query(text) or current_month()
+    def _line_record_success(self, record: dict[str, Any]) -> str:
+        month = record.get("month", current_month())
         stats = self.stats(month)
+        split = ""
+        if record["tPaid"] and record["fPaid"]:
+            split = f"\n分擔：T ${record['tPaid']} / F ${record['fPaid']}"
+        return (
+            "✅ 已記錄\n"
+            f"📅 {record['date']}  {record['type']}  {record['detail']}  ${record['amount']} ({record['payer']}付)"
+            f"{split}\n\n"
+            f"📊 {month}累計\n"
+            f"T ${stats['tTotal']}\n"
+            f"F ${stats['fTotal']}\n"
+            f"合計 ${stats['totalExpense']}"
+        )
+
+    def _line_query_summary(self, text: str) -> str:
+        target = _parse_query_target(text)
+        if target["kind"] == "category":
+            return self._line_category_summary(target["value"])
+
+        month = target["value"] or current_month()
+        stats = self.stats(month)
+        settlement = self._line_settlement_summary(month, include_title=False)
         return (
             f"{month} 支出摘要\n"
             f"總支出：${stats['totalExpense']}\n"
             f"T 負擔：${stats['tTotal']}\n"
             f"F 負擔：${stats['fTotal']}\n"
-            f"今日：${stats['todayExpense']}"
+            f"今日：${stats['todayExpense']}\n"
+            f"{settlement}"
         )
 
     def _line_today_summary(self) -> str:
-        today = date.today()
-        today_text = f"{today.year}/{today.month}/{today.day}"
-        records = [r for r in self.sheets.expense_records() if r["date"] == today_text]
+        return self._line_day_summary(date.today())
+
+    def _line_day_summary(self, day: date) -> str:
+        day_text = f"{day.year}/{day.month}/{day.day}"
+        records = [r for r in self.sheets.expense_records() if r["date"] == day_text]
         total = sum(r["amount"] for r in records)
         if not records:
-            return f"今日尚無支出紀錄。\n日期：{today_text}"
+            return f"尚無支出紀錄。\n日期：{day_text}"
 
         details = "\n".join(
             f"- {r['type']} {r['detail']}：${r['amount']}"
             for r in records[:5]
         )
         more = f"\n...還有 {len(records) - 5} 筆" if len(records) > 5 else ""
-        return f"今日支出：${total}\n{details}{more}"
+        return f"{day_text} 支出：${total}\n{details}{more}"
+
+    def _line_category_summary(self, category: str) -> str:
+        month = current_month()
+        records = [r for r in self.sheets.expense_records() if r["month"] == month and r["type"] == category]
+        total = sum(r["amount"] for r in records)
+        return f"{month} {category} 小計：${total}（{len(records)} 筆）"
+
+    def _line_recent_summary(self, text: str) -> str:
+        m = re.fullmatch(r"最近(\d+)?", text)
+        if not m:
+            raise ValueError("最近指令格式錯誤，請使用：最近 或 最近5")
+        limit = int(m.group(1) or 5)
+        limit = max(1, min(limit, 20))
+        records = sorted(self.sheets.expense_records(), key=lambda r: (r.get("date", ""), r.get("sheetRow", 0)), reverse=True)
+        records = records[:limit]
+        if not records:
+            return "目前沒有任何支出紀錄。"
+        lines = [f"- {r['date']} {r['type']} {r['detail']} ${r['amount']} ({r['payer']})" for r in records]
+        return f"最近 {len(records)} 筆：\n" + "\n".join(lines)
+
+    def _line_settlement_summary(self, month: str, include_title: bool = True) -> str:
+        records = [r for r in self.sheets.expense_records() if r["month"] == month]
+        t_total = sum(r["tPaid"] for r in records)
+        f_total = sum(r["fPaid"] for r in records)
+        delta = t_total - f_total
+        title = f"{month} 結算\n" if include_title else ""
+        if delta > 0:
+            body = f"F 應補 T ${delta // 2}"
+        elif delta < 0:
+            body = f"T 應補 F ${(-delta) // 2}"
+        else:
+            body = "本月雙方已結清 ✅"
+        return f"{title}T 共付 ${t_total} / F 共付 ${f_total}\n{body}"
+
+    def _line_delete_last(self) -> str:
+        if self.sheets.using_demo_data:
+            raise ValueError("示範資料模式無法刪除，請先連接 Google Sheets")
+        records = [r for r in self.sheets.expense_records() if r.get("sheetRow")]
+        if not records:
+            return "目前沒有可刪除的紀錄。"
+        target = max(records, key=lambda r: int(r["sheetRow"]))
+        self.sheets.delete_expense_row(int(target["sheetRow"]))
+        return f"✅ 已刪除：{target['date']} {target['type']} {target['detail']} ${target['amount']}"
 
     def _usage_message(self) -> str:
         return (
-            "可用指令：\n"
-            "記 餐費 拉亞+M 415\n"
-            "記F 飲料 coco 99\n"
-            "記 餐費 早餐+便當 590 分215\n"
-            "查 或 查 2026-04\n"
-            "今日 / 本月"
+            "可用指令清單：\n"
+            "📝 記帳\n"
+            "• 拉亞 415\n"
+            "• F coco 99\n"
+            "• 早餐+便當 590 分215\n"
+            "• 昨天 拉亞 415\n"
+            "• 餐費 拉亞 415\n\n"
+            "🔍 查詢\n"
+            "• 查 / 查 2026-04 / 查 4月 / 查 餐費\n"
+            "• 今日 / 昨天 / 本月\n"
+            "• 最近 / 最近5\n"
+            "• 結算\n\n"
+            "✏️ 操作\n"
+            "• 刪 / 撤銷\n\n"
+            "ℹ️ 說明\n"
+            "• help / 說明 / 幫助 / 指令"
         )
 
     def _latest_month(self, records: list[dict[str, Any]]) -> str:
@@ -309,3 +393,37 @@ def _parse_month_query(text: str) -> str | None:
             return f"{date.today().year:04d}-{month:02d}"
 
     raise ValueError("查詢月份格式錯誤，請使用：查 2026-04 或 查 4月")
+
+
+def _parse_query_target(text: str) -> dict[str, str | None]:
+    parts = text.strip().split()
+    if len(parts) < 2:
+        return {"kind": "month", "value": None}
+    value = parts[1].strip()
+    try:
+        month = _parse_month_query(text)
+        if month:
+            return {"kind": "month", "value": month}
+    except ValueError:
+        pass
+
+    category_map = {
+        "餐費": "Food",
+        "食物": "Food",
+        "早餐": "Food",
+        "午餐": "Food",
+        "晚餐": "Food",
+        "飲料": "Drink",
+        "喝": "Drink",
+        "寶寶": "Baby",
+        "嬰兒": "Baby",
+        "育兒": "Baby",
+        "學費": "Tuition",
+        "補習": "Tuition",
+        "保險": "Insurance",
+        "其他": "Other",
+    }
+    normalized = category_map.get(value, value.capitalize())
+    if normalized in {"Food", "Drink", "Baby", "Tuition", "Insurance", "Other"}:
+        return {"kind": "category", "value": normalized}
+    raise ValueError("查詢格式錯誤，請使用：查 / 查 2026-04 / 查 4月 / 查 餐費")
