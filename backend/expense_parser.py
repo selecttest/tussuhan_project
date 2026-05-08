@@ -46,6 +46,7 @@ class ExpenseCommand:
     payer: str
     t_paid: int
     f_paid: int
+    inferred_other_no_keyword: bool = False
 
     @property
     def month(self) -> str:
@@ -66,6 +67,7 @@ class ExpenseCommand:
             "t_paid": self.t_paid,
             "f_paid": self.f_paid,
             "month": self.month,
+            "inferredOtherNoKeyword": self.inferred_other_no_keyword,
         }
 
     def to_sheet_row(self) -> list:
@@ -120,7 +122,10 @@ def parse_expense_command(text: str, today: date | None = None) -> ExpenseComman
     split_amount = _parse_split_amount(parts[idx + 2 :])
 
     payer = payer or "T"
-    expense_type = expense_type or _infer_category_from_detail(detail)
+    used_category_inference = expense_type is None
+    if used_category_inference:
+        expense_type = _infer_category_from_detail(detail)
+    inferred_other_no_keyword = used_category_inference and expense_type == "Other"
     t_paid, f_paid = _split_paid_amount(amount, payer, split_amount)
 
     return ExpenseCommand(
@@ -131,6 +136,7 @@ def parse_expense_command(text: str, today: date | None = None) -> ExpenseComman
         payer=payer,
         t_paid=t_paid,
         f_paid=f_paid,
+        inferred_other_no_keyword=inferred_other_no_keyword,
     )
 
 

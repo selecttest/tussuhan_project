@@ -274,10 +274,13 @@ class DashboardService:
         split = ""
         if record["tPaid"] and record["fPaid"]:
             split = f"\n分擔：T ${record['tPaid']} / F ${record['fPaid']}"
+        inferred_other = ""
+        if record.get("inferredOtherNoKeyword"):
+            inferred_other = "\n💡 未找到關鍵字，已分類為其他紀錄。"
         return (
             "✅ 已記錄\n"
             f"📅 {record['date']}  {record['type']}  {record['detail']}  ${record['amount']} ({record['payer']}付)"
-            f"{split}\n\n"
+            f"{split}{inferred_other}\n\n"
             f"📊 {month}累計\n"
             f"T ${stats['tTotal']}\n"
             f"F ${stats['fTotal']}\n"
@@ -294,10 +297,14 @@ class DashboardService:
             records.append(result["record"])
 
         total_added = sum(r["amount"] for r in records)
-        preview = "\n".join(
-            f"{i}. {r['date']} {r['type']} {r['detail']} ${r['amount']} ({r['payer']}付)"
-            for i, r in enumerate(records[:5], start=1)
-        )
+
+        def _preview_row(i: int, r: dict[str, Any]) -> str:
+            line = f"{i}. {r['date']} {r['type']} {r['detail']} ${r['amount']} ({r['payer']}付)"
+            if r.get("inferredOtherNoKeyword"):
+                line += "\n   💡 未找到關鍵字，已分類為其他紀錄。"
+            return line
+
+        preview = "\n".join(_preview_row(i, r) for i, r in enumerate(records[:5], start=1))
         if len(records) > 5:
             preview += f"\n...其餘 {len(records) - 5} 筆略"
 
@@ -411,12 +418,14 @@ class DashboardService:
         return (
             "可用指令清單：\n"
             "📝 記帳\n"
+            "【單筆】\n"
             "• 拉亞 415\n"
             "• F coco 99\n"
             "• 早餐+便當 590 分215\n"
             "• 昨天 拉亞 415\n"
             "• 餐費 拉亞 415\n\n"
-            "• 多筆：每筆一行，或用 ; 分隔\n"
+            "【多筆】\n"
+            "• 每筆一行，或用 ; / ； 分隔\n"
             "  例：拉亞 415; F coco 99\n\n"
             "🔍 查詢\n"
             "• 查 / 查 2026-04 / 查 4月 / 查 餐費\n"
