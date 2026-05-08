@@ -251,6 +251,10 @@ class DashboardService:
             if normalized in {"help", "Help", "說明", "幫助", "指令"}:
                 return self._usage_message()
 
+            multi_commands = self._extract_multi_record_commands(normalized)
+            if multi_commands:
+                return self._line_record_multiple_success(multi_commands)
+
             # 新版與舊版記帳格式都交給 parser
             result = self.record_expense_command(normalized)
             return self._line_record_success(result["record"])
@@ -275,6 +279,52 @@ class DashboardService:
             f"F ${stats['fTotal']}\n"
             f"合計 ${stats['totalExpense']}"
         )
+
+    def _line_record_multiple_success(self, commands: list[str]) -> str:
+        records: list[dict[str, Any]] = []
+        for idx, cmd in enumerate(commands, start=1):
+            try:
+                result = self.record_expense_command(cmd)
+            except ValueError as exc:
+                raise ValueError(f"第 {idx} 筆格式錯誤：{exc}") from exc
+            records.append(result["record"])
+
+        total_added = sum(r["amount"] for r in records)
+        preview = "\n".join(
+            f"{i}. {r['date']} {r['type']} {r['detail']} ${r['amount']} ({r['payer']}付)"
+            for i, r in enumerate(records[:5], start=1)
+        )
+        if len(records) > 5:
+            preview += f"\n...其餘 {len(records) - 5} 筆略"
+
+        by_month: dict[str, dict[str, int]] = {}
+        for r in records:
+            month = r["month"]
+            if month not in by_month:
+                s = self.stats(month)
+                by_month[month] = {"t": s["tTotal"], "f": s["fTotal"], "total": s["totalExpense"]}
+
+        month_lines = "\n".join(
+            f"📊 {m}累計：T ${v['t']} / F ${v['f']} / 合計 ${v['total']}"
+            for m, v in sorted(by_month.items())
+        )
+
+        return (
+            f"✅ 已批次記錄 {len(records)} 筆（合計 ${total_added}）\n"
+            f"{preview}\n\n"
+            f"{month_lines}"
+        )
+
+    def _extract_multi_record_commands(self, text: str) -> list[str]:
+        if "\n" not in text and "；" not in text and ";" not in text:
+            return []
+        chunks: list[str] = []
+        for line in text.splitlines():
+            for seg in re.split(r"[；;]", line):
+                s = seg.strip()
+                if s:
+                    chunks.append(s)
+        return chunks if len(chunks) >= 2 else []
 
     def _line_query_summary(self, text: str) -> str:
         target = _parse_query_target(text)
@@ -362,6 +412,8 @@ class DashboardService:
             "• 早餐+便當 590 分215\n"
             "• 昨天 拉亞 415\n"
             "• 餐費 拉亞 415\n\n"
+            "• 多筆：每筆一行，或用 ; 分隔\n"
+            "  例：拉亞 415; F coco 99\n\n"
             "🔍 查詢\n"
             "• 查 / 查 2026-04 / 查 4月 / 查 餐費\n"
             "• 今日 / 昨天 / 本月\n"
