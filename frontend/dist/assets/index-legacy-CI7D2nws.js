@@ -1,0 +1,1 @@
+System.register(["./index-legacy-BqowVyZJ.js"],function(e,t){"use strict";var a,r,n;return{setters:[e=>{a=e.b5,r=e.a0,n=e.b6}],execute:function(){e({b:function(){n({variableName:r("scrollbar.width").name})},u:function(){a({variableName:r("scrollbar.width").name})}})}}});
